@@ -1,7 +1,9 @@
 package ui;
 
+import dao.UserDAO;
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.SQLException;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -181,25 +183,32 @@ public class LoginFrame extends JFrame {
             return;
         }
 
-        if (authenticate(username, password)) {
-            dispose();
-            new DashboardFrame(username).setVisible(true);
-        } else {
-            lblError.setText("Invalid username or password.");
-            txtPass.setText("");
-            txtPass.requestFocusInWindow();     
-        }
-    }
+        try {
+            UserDAO.LoginResult user = new UserDAO().login(username, password);
+            if (user == null) {
+                lblError.setText("Invalid username or password.");
+                txtPass.setText("");
+                txtPass.requestFocusInWindow();
+                return;
+            }
 
-    /**
-     * TEMPORARY check so the screen works right away (admin / admin).
-     * Replace this with a real lookup against your users table in Derby.
-     */
-    private boolean authenticate(String username, String password) {
-        return username.equals("admin") && password.equals("1234");
+            // Employee accounts must not see the admin dashboard.
+            // TODO: open the employee self-service screen here once it exists.
+            if ("EMPLOYEE".equals(user.role())) {
+                lblError.setText("The employee portal is not available yet.");
+                txtPass.setText("");
+                return;
+            }
+
+            dispose();
+            new DashboardFrame(user.username()).setVisible(true);
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            lblError.setText("Cannot reach the database. Is Derby running?");
+        }
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
     }
-}
+}   

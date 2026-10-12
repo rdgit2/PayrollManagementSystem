@@ -1,31 +1,30 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
-/**
- *
- * @author alfre
- */
 public class User {
-     private int userId;
+    private int userId;
     private String username;
     private String passwordHash;
     private String fullName;
-    private String userRole;   // ADMIN, HR, PAYROLL
+    private String userRole;   // ADMIN, HR, PAYROLL, EMPLOYEE
     private String status;     // ACTIVE, INACTIVE
+    private Integer employeeId; // only set for EMPLOYEE accounts
 
     public User() { }
 
     public User(int userId, String username, String passwordHash,
                 String fullName, String userRole, String status) {
+        this(userId, username, passwordHash, fullName, userRole, status, null);
+    }
+
+    public User(int userId, String username, String passwordHash,
+                String fullName, String userRole, String status, Integer employeeId) {
         this.userId = userId;
         this.username = username;
         this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.userRole = userRole;
         this.status = status;
+        this.employeeId = employeeId;
     }
 
     public int getUserId() { return userId; }
@@ -45,4 +44,7 @@ public class User {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Integer getEmployeeId() { return employeeId; }
+    public void setEmployeeId(Integer employeeId) { this.employeeId = employeeId; }
 }

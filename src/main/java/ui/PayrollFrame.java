@@ -1,150 +1,161 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package ui;
 
-import java.awt.*;
+import dao.PayrollDAO;
+import dao.PayrollDAO.PayrollRow;
+import dao.PayslipDAO;
+
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
-/**
- *
- * @author alfre
- */
-public class PayrollFrame extends JPanel {
-    
-    private final JComboBox<String> cboPeriod = new JComboBox<>(
-            new String[]{"Oct 1 – Oct 31, 2026 (OPEN)", "Sep 1 – Sep 30, 2026 (CLOSED)"});
-    private final JButton btnGenerate = new JButton("Generate payslips");
-    private final JButton btnClose = new JButton("Close period");
- 
-    private final DefaultTableModel model = new DefaultTableModel(
-            new String[]{"Employee", "Basic", "Overtime", "Gross", "Deductions", "Net pay"}, 0) {
+import java.awt.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class PayrollFrame extends JFrame {
+
+    private final JTextField fromField = new JTextField(10);
+    private final JTextField toField = new JTextField(10);
+    private final JLabel totalLabel = new JLabel("Total net pay: 0.00");
+    private final DefaultTableModel model = new DefaultTableModel(new Object[]{
+            "Employee no", "Name", "Daily rate", "Present", "Late", "On leave",
+            "Absent", "Gross", "Deductions", "Net pay"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable table = new JTable(model);
- 
+    private final PayrollDAO dao = new PayrollDAO();
+
+    // kept so a selected table row can be matched to its PayrollRow
+    private List<PayrollRow> currentRows = new ArrayList<>();
+    private LocalDate lastFrom, lastTo;
+
+    // CHANGE later: the logged-in user's ID (used for PROCESSED_BY)
+    private int currentUserId = 1;
+
     public PayrollFrame() {
+        super("Payroll");
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(1100, 460);
+        setLocationRelativeTo(null);
+
+        LocalDate today = LocalDate.now();
+        fromField.setText(today.withDayOfMonth(1).toString());
+        toField.setText(today.toString());
+
+        JButton computeBtn = new JButton("Compute");
+        computeBtn.addActionListener(e -> compute());
+
+        JButton payslipBtn = new JButton("View Payslip");
+        payslipBtn.addActionListener(e -> showPayslip());
+
+        JButton saveBtn = new JButton("Save Payslips");
+        saveBtn.addActionListener(e -> savePayslips());
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        top.add(new JLabel("From (yyyy-MM-dd):"));
+        top.add(fromField);
+        top.add(new JLabel("To:"));
+        top.add(toField);
+        top.add(computeBtn);
+        top.add(payslipBtn);
+        top.add(saveBtn);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottom.add(totalLabel);
+
         setLayout(new BorderLayout());
-        add(buildPanel(), BorderLayout.CENTER);
-        loadPeriod();
+        add(top, BorderLayout.NORTH);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+        add(bottom, BorderLayout.SOUTH);
     }
- 
-    // ---------- layout pieces ----------
- 
-    private JPanel buildPanel() {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBorder(new EmptyBorder(16, 20, 16, 20));
- 
-        JLabel h = new JLabel("Payroll processing");
-        h.setFont(h.getFont().deriveFont(Font.BOLD, 20f));
-        h.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(h);
-        p.add(Box.createVerticalStrut(10));
- 
-        JLabel lbl = new JLabel("Pay period");
-        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(lbl);
-        p.add(Box.createVerticalStrut(4));
- 
-        cboPeriod.setAlignmentX(Component.LEFT_ALIGNMENT);
-        cboPeriod.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-        cboPeriod.addActionListener(e -> loadPeriod());
-        p.add(cboPeriod);
-        p.add(Box.createVerticalStrut(8));
- 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        btnGenerate.addActionListener(e -> onGenerate());
-        btnClose.addActionListener(e -> onClosePeriod());
-        buttons.add(btnGenerate);
-        buttons.add(btnClose);
-        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-        buttons.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        p.add(buttons);
-        p.add(Box.createVerticalStrut(8));
- 
-        // table
-        table.setRowHeight(26);
-        table.setShowVerticalLines(false);
-        table.setFillsViewportHeight(true);
-        table.getTableHeader().setReorderingAllowed(false);
-        table.getTableHeader().setFont(table.getTableHeader().getFont().deriveFont(Font.BOLD));
-        for (int col = 1; col <= 5; col++) {
-            rightAlignColumn(col);
-        }
- 
-        JScrollPane sp = new JScrollPane(table);
-        sp.setBorder(BorderFactory.createLineBorder(new Color(220, 220, 220)));
-        sp.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(sp);
-        p.add(Box.createVerticalStrut(8));
- 
-        JLabel note = new JLabel("Columns come from the PAYSLIP_SUMMARY view.");
-        note.setForeground(Color.GRAY);
-        note.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(note);
-        return p;
+
+    /** Use this once the dashboard can pass the logged-in user's ID. */
+    public PayrollFrame(int userId) {
+        this();
+        this.currentUserId = userId;
     }
- 
-    private void rightAlignColumn(int col) {
-        DefaultTableCellRenderer cell = new DefaultTableCellRenderer();
-        cell.setHorizontalAlignment(SwingConstants.RIGHT);
-        table.getColumnModel().getColumn(col).setCellRenderer(cell);
- 
-        TableCellRenderer base = table.getTableHeader().getDefaultRenderer();
-        table.getColumnModel().getColumn(col).setHeaderRenderer((t, v, sel, foc, row, c) -> {
-            Component comp = base.getTableCellRendererComponent(t, v, sel, foc, row, c);
-            if (comp instanceof JLabel) {
-                ((JLabel) comp).setHorizontalAlignment(SwingConstants.RIGHT);
+
+    private void compute() {
+        try {
+            LocalDate from = LocalDate.parse(fromField.getText().trim());
+            LocalDate to = LocalDate.parse(toField.getText().trim());
+            if (to.isBefore(from)) {
+                JOptionPane.showMessageDialog(this, "'To' date must not be before 'From' date.");
+                return;
             }
-            return comp;
-        });
-    }
- 
-    private String money(double v) {
-        return String.format("%,.2f", v);
-    }
- 
-    // ---------- behavior ----------
- 
-    private boolean isOpen() {
-        return String.valueOf(cboPeriod.getSelectedItem()).contains("(OPEN)");
-    }
- 
-    /** Reload the table for the selected period. Replace with a query on PAYSLIP_SUMMARY. */
-    private void loadPeriod() {
-        // TODO: new PayslipDAO().findSummaryByPeriod(periodId)
-        model.setRowCount(0);
-        addRow("Santos, Maria", 22000, 0,   22000, 2100);
-        addRow("Reyes, Juan",   28000, 500, 28500, 3200);
-        addRow("Cruz, Ana",     35000, 0,   35000, 5400);
- 
-        btnGenerate.setEnabled(isOpen());
-        btnClose.setEnabled(isOpen());
-    }
- 
-    private void addRow(String name, double basic, double ot, double gross, double ded) {
-        model.addRow(new Object[]{name, money(basic), money(ot),
-                money(gross), money(ded), money(gross - ded)});
-    }
- 
-    private void onGenerate() {
-        // TODO: new PayrollService().generatePayslips(periodId); then loadPeriod()
-        JOptionPane.showMessageDialog(this, "Payslips generated for the selected period.");
-    }
- 
-    private void onClosePeriod() {
-        int ok = JOptionPane.showConfirmDialog(this,
-                "Close this pay period? It can no longer be changed.", "Confirm",
-                JOptionPane.YES_NO_OPTION);
-        if (ok == JOptionPane.YES_OPTION) {
-            // TODO: new PayPeriodDAO().close(periodId);
-            btnGenerate.setEnabled(false);
-            btnClose.setEnabled(false);
+            List<PayrollRow> rows = dao.compute(from, to);
+            currentRows = rows;
+            lastFrom = from;
+            lastTo = to;
+
+            model.setRowCount(0);
+            double total = 0;
+            for (PayrollRow r : rows) {
+                model.addRow(new Object[]{
+                        r.employeeNo(), r.name(), money(r.dailyRate()),
+                        r.present(), r.late(), r.onLeave(), r.absent(),
+                        money(r.gross()), money(r.deductions()), money(r.net())});
+                total += r.net();
+            }
+            totalLabel.setText("Total net pay: " + money(total));
+        } catch (DateTimeParseException ex) {
+            JOptionPane.showMessageDialog(this, "Use the date format yyyy-MM-dd, e.g. 2026-10-01.");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
         }
+    }
+
+    private void showPayslip() {
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) {
+            JOptionPane.showMessageDialog(this, "Select an employee row first.");
+            return;
+        }
+        if (lastFrom == null || lastTo == null || currentRows.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Click Compute first.");
+            return;
+        }
+
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        PayrollRow r = currentRows.get(modelRow);
+
+        PayslipFrame panel = new PayslipFrame();
+        panel.load(r.name() + " · " + r.employeeNo(),
+                lastFrom + " – " + lastTo,
+                r.gross(), 0,
+                new String[]{"Late (" + r.late() + " x " + money(PayrollDAO.LATE_DEDUCTION) + ")"},
+                new double[]{r.deductions()});
+
+        JDialog d = new JDialog(this, "Payslip", Dialog.ModalityType.APPLICATION_MODAL);
+        d.setContentPane(panel);
+        d.setSize(520, 420);
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+    }
+
+    private void savePayslips() {
+        if (lastFrom == null || lastTo == null || currentRows.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Click Compute first.");
+            return;
+        }
+        int ok = JOptionPane.showConfirmDialog(this,
+                "Save payslips for " + lastFrom + " to " + lastTo + "?",
+                "Confirm", JOptionPane.YES_NO_OPTION);
+        if (ok != JOptionPane.YES_OPTION) return;
+
+        try {
+            PayslipDAO.SaveResult res =
+                    new PayslipDAO().savePayslips(currentRows, lastFrom, lastTo, currentUserId);
+            JOptionPane.showMessageDialog(this,
+                    "Saved: " + res.saved
+                    + "\nAlready saved earlier: " + res.alreadySaved
+                    + "\nSkipped (no pay): " + res.noPay);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Save failed: " + ex.getMessage());
+        }
+    }
+
+    private static String money(double v) {
+        return String.format("%,.2f", v);
     }
 }

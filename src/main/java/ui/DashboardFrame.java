@@ -1,9 +1,13 @@
 package ui;
 
+import dao.DashboardDAO;
 import java.awt.*;
 import java.awt.event.*;
+import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.function.Supplier;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -16,6 +20,7 @@ public class DashboardFrame extends JFrame {
     private static final Color TEXT      = new Color(0x0F172A);
     private static final Color TEXT_SOFT = new Color(0x334155);
     private static final Color MUTED     = new Color(0x64748B);
+    private static final Color ERROR     = new Color(0xDC2626);
     private static final Color ACTIVE_BG = new Color(0xEFF6FF);
     private static final Color HOVER_BG  = new Color(0xF1F5F9);
 
@@ -50,14 +55,38 @@ public class DashboardFrame extends JFrame {
         add(content, BorderLayout.CENTER);
 
         content.add(buildDashboardPanel(), "dashboard");
-        content.add(new EmployeeFrame(), "employees");
-        content.add(new AttendanceFrame(), "attendance");
-        content.add(new PayrollFrame(), "payroll");
-        content.add(new PayslipFrame(), "payslip");
-        content.add(new Setup(), "setup");
+        addScreen("employees", EmployeeFrame::new);
+        addScreen("attendance", AttendanceFrame::new);
+        addScreen("payroll", PayrollFrame::new);
+        addScreen("payslip", PayslipFrame::new);
+        addScreen("setup", Setup::new);
 
         refreshStats();
         showScreen("dashboard");
+    }
+
+    /**
+     * Adds a screen to the content area. If the screen is a JFrame, its
+     * content pane is used instead of the window itself. If the screen fails
+     * to build, an error message is shown in its place so the dashboard
+     * still opens.
+     */
+    private void addScreen(String name, Supplier<Component> factory) {
+        try {
+            Component screen = factory.get();
+            if (screen instanceof RootPaneContainer) {
+                screen = ((RootPaneContainer) screen).getContentPane();
+            }
+            content.add(screen, name);
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            JPanel err = new JPanel(new GridBagLayout());
+            err.setBackground(BG);
+            JLabel msg = new JLabel("Could not load the \"" + name + "\" screen: " + ex.getMessage());
+            msg.setForeground(ERROR);
+            err.add(msg);
+            content.add(err, name);
+        }
     }
 
     // ---------- layout pieces ----------
@@ -127,7 +156,7 @@ public class DashboardFrame extends JFrame {
         JButton logout = navButton("Log out");
         logout.addActionListener(e -> {
             dispose();
-            // TODO: new LoginFrame().setVisible(true);
+            new LoginFrame().setVisible(true);
         });
         nav.add(logout);
         return nav;
@@ -341,8 +370,26 @@ public class DashboardFrame extends JFrame {
         }
     }
 
-    /** Reload the numbers. Replace the sample values with DAO calls. */
+    /** Reloads the dashboard numbers from the database. */
     public void refreshStats() {
-        // TODO: DashboardStats s = new DashboardDAO().load();
+        try {
+            DashboardDAO.Stats s = new DashboardDAO().load();
+            lblActive.setText(String.valueOf(s.active()));
+            lblPresent.setText(String.valueOf(s.present()));
+            lblLate.setText(String.valueOf(s.late()));
+            lblAbsent.setText(String.valueOf(s.absent()));
+            lblPeriod.setText(s.period() == null ? "No open pay period" : "Pay period: " + s.period());
+            lblGross.setText(money(s.gross()));
+            lblDeductions.setText(money(s.deductions()));
+            lblNet.setText(money(s.net()));
+            lblPayslips.setText(s.payslips() + " / " + s.active());
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            lblPeriod.setText("Cannot load data. Is Derby running?");
+        }
+    }
+
+    private static String money(BigDecimal v) {
+        return String.format("%,.2f", v);
     }
 }

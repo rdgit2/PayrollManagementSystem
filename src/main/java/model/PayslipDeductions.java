@@ -1,21 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
-/**
- *
- * @author alfre
- */
+import java.math.BigDecimal;
+
 public class PayslipDeductions {
     private int payslipId;
     private int deductionTypeId;
-    private double amount;
+    private BigDecimal amount = BigDecimal.ZERO;
+
+    private String deductionName;   // for display only
 
     public PayslipDeductions() { }
 
-    public PayslipDeductions(int payslipId, int deductionTypeId, double amount) {
+    public PayslipDeductions(int payslipId, int deductionTypeId, BigDecimal amount) {
         this.payslipId = payslipId;
         this.deductionTypeId = deductionTypeId;
         this.amount = amount;
@@ -27,7 +23,9 @@ public class PayslipDeductions {
     public int getDeductionTypeId() { return deductionTypeId; }
     public void setDeductionTypeId(int deductionTypeId) { this.deductionTypeId = deductionTypeId; }
 
-    public double getAmount() { return amount; }
-    public void setAmount(double amount) { this.amount = amount; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
+    public String getDeductionName() { return deductionName; }
+    public void setDeductionName(String deductionName) { this.deductionName = deductionName; }
 }

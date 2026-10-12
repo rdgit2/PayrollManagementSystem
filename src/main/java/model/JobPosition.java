@@ -1,21 +1,15 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
-/**
- *
- * @author alfre
- */
+import java.math.BigDecimal;
+
 public class JobPosition {
     private int positionId;
     private String positionTitle;
-    private double monthlySalary;
+    private BigDecimal monthlySalary;
 
     public JobPosition() { }
 
-    public JobPosition(int positionId, String positionTitle, double monthlySalary) {
+    public JobPosition(int positionId, String positionTitle, BigDecimal monthlySalary) {
         this.positionId = positionId;
         this.positionTitle = positionTitle;
         this.monthlySalary = monthlySalary;
@@ -27,7 +21,8 @@ public class JobPosition {
     public String getPositionTitle() { return positionTitle; }
     public void setPositionTitle(String positionTitle) { this.positionTitle = positionTitle; }
 
-    public double getMonthlySalary() { return monthlySalary; }
-    public void setMonthlySalary(double monthlySalary) { this.monthlySalary = monthlySalary; }
+    public BigDecimal getMonthlySalary() { return monthlySalary; }
+    public void setMonthlySalary(BigDecimal monthlySalary) { this.monthlySalary = monthlySalary; }
 
+    @Override public String toString() { return positionTitle; } // for combo boxes
 }

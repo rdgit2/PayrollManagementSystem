@@ -1,33 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
-/**
- *
- * @author alfre
- */
 public class PayPeriod {
     private int periodId;
     private LocalDate periodStart;
     private LocalDate periodEnd;
     private LocalDate payDate;
-    private String status;
+    private String status;   // OPEN, CLOSED
 
     public PayPeriod() { }
 
-    public PayPeriod(int perodId, LocalDate periodStart, LocalDate periodEnd,
-            LocalDate payDate,String status) {
-        this.periodId = periodId;
-        this.periodStart = periodStart;
-        this.periodEnd = periodEnd;
-        this.payDate = payDate;
-        this.status = status;
-    }
     public int getPeriodId() { return periodId; }
     public void setPeriodId(int periodId) { this.periodId = periodId; }
 
@@ -43,4 +27,9 @@ public class PayPeriod {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    @Override
+    public String toString() {
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("MMM d, yyyy");
+        return periodStart.format(f) + " - " + periodEnd.format(f) + " (" + status + ")";
+    }
 }

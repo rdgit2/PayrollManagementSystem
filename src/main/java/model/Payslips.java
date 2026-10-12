@@ -1,36 +1,26 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-/**
- *
- * @author alfre
- */
 public class Payslips {
     private int payslipId;
     private int periodId;
     private int employeeId;
     private int processedBy;
-    private double basicPay;
-    private double overtimePay;
-    private LocalDate dateGenerated;
+    private BigDecimal basicPay = BigDecimal.ZERO;
+    private BigDecimal overtimePay = BigDecimal.ZERO;
+    private LocalDateTime dateGenerated;
+
+    // computed by the PAYSLIP_SUMMARY view / joins (display only)
+    private BigDecimal grossPay = BigDecimal.ZERO;
+    private BigDecimal totalDeductions = BigDecimal.ZERO;
+    private BigDecimal netPay = BigDecimal.ZERO;
+    private String employeeNo;
+    private String employeeName;
 
     public Payslips() { }
 
-    public Payslips(int payslipId, int periodId, int employeeId,int processedBy, 
-            double basicPay, double overtimePay, LocalDate dateGenerated) {
-        this.payslipId = payslipId;
-        this.periodId = periodId;
-        this.employeeId = employeeId;
-        this.processedBy = processedBy;
-        this.basicPay = basicPay;
-        this.overtimePay = overtimePay;
-        this.dateGenerated = dateGenerated;
-    }
     public int getPayslipId() { return payslipId; }
     public void setPayslipId(int payslipId) { this.payslipId = payslipId; }
 
@@ -43,13 +33,27 @@ public class Payslips {
     public int getProcessedBy() { return processedBy; }
     public void setProcessedBy(int processedBy) { this.processedBy = processedBy; }
 
-    public double getBasicPay() { return basicPay; }
-    public void setBasicPay(double basicPay) { this.basicPay = basicPay; }
+    public BigDecimal getBasicPay() { return basicPay; }
+    public void setBasicPay(BigDecimal basicPay) { this.basicPay = basicPay; }
 
-    public double getOvertimePay() { return overtimePay; }
-    public void setOvertimePay(double overtimePay) { this.overtimePay = overtimePay; }
+    public BigDecimal getOvertimePay() { return overtimePay; }
+    public void setOvertimePay(BigDecimal overtimePay) { this.overtimePay = overtimePay; }
 
-    public LocalDate getDateGenerated() { return dateGenerated; }
-    public void setDateGenerated(LocalDate dateGenerated) { this.dateGenerated = dateGenerated; }
+    public LocalDateTime getDateGenerated() { return dateGenerated; }
+    public void setDateGenerated(LocalDateTime dateGenerated) { this.dateGenerated = dateGenerated; }
 
+    public BigDecimal getGrossPay() { return grossPay; }
+    public void setGrossPay(BigDecimal grossPay) { this.grossPay = grossPay; }
+
+    public BigDecimal getTotalDeductions() { return totalDeductions; }
+    public void setTotalDeductions(BigDecimal totalDeductions) { this.totalDeductions = totalDeductions; }
+
+    public BigDecimal getNetPay() { return netPay; }
+    public void setNetPay(BigDecimal netPay) { this.netPay = netPay; }
+
+    public String getEmployeeNo() { return employeeNo; }
+    public void setEmployeeNo(String employeeNo) { this.employeeNo = employeeNo; }
+
+    public String getEmployeeName() { return employeeName; }
+    public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
 }

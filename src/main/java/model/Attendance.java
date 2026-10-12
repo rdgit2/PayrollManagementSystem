@@ -1,34 +1,22 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-/**
- *
- * @author alfre
- */
+
 public class Attendance {
-    private int attendanceId;
+    private int attendanceId;          // 0 = not saved yet
     private int employeeId;
     private LocalDate attendanceDate;
     private LocalTime timeIn;
     private LocalTime timeOut;
-    private String status;
+    private String status;             // PRESENT, LATE, ABSENT, ON_LEAVE (null = not marked yet)
+
+    // for display only
+    private String employeeNo;
+    private String employeeName;
 
     public Attendance() { }
 
-    public Attendance(int attendanceId, int employeeId, LocalDate attendanceDate, LocalTime timeIn, LocalTime timeOut,
-            String status) {
-        this.attendanceId = attendanceId;
-        this.employeeId = employeeId;
-        this.attendanceDate = attendanceDate;
-        this.timeIn = timeIn;
-        this.timeOut = timeOut;
-        this.status = status;
-    }
     public int getAttendanceId() { return attendanceId; }
     public void setAttendanceId(int attendanceId) { this.attendanceId = attendanceId; }
 
@@ -47,4 +35,9 @@ public class Attendance {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public String getEmployeeNo() { return employeeNo; }
+    public void setEmployeeNo(String employeeNo) { this.employeeNo = employeeNo; }
+
+    public String getEmployeeName() { return employeeName; }
+    public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
 }
