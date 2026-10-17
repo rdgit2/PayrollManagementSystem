@@ -1,6 +1,7 @@
 package ui;
 
 import dao.DashboardDAO;
+import dao.UserDAO;
 import java.awt.*;
 import java.awt.event.*;
 import java.math.BigDecimal;
@@ -13,7 +14,6 @@ import javax.swing.border.EmptyBorder;
 
 public class DashboardFrame extends JFrame {
 
-    // ---------- palette (one blue accent, neutral greys) ----------
     private static final Color PRIMARY   = new Color(0x1D4ED8);
     private static final Color BG        = new Color(0xF8FAFC);
     private static final Color BORDER    = new Color(0xE2E8F0);
@@ -24,11 +24,13 @@ public class DashboardFrame extends JFrame {
     private static final Color ACTIVE_BG = new Color(0xEFF6FF);
     private static final Color HOVER_BG  = new Color(0xF1F5F9);
 
+    private final String username;
+    private final String role;
+
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel content = new JPanel(cardLayout);
     private final JPanel nav = new JPanel();
 
-    // stat labels (filled by refreshStats)
     private final JLabel lblActive = new JLabel("0");
     private final JLabel lblPresent = new JLabel("0");
     private final JLabel lblLate = new JLabel("0");
@@ -41,8 +43,11 @@ public class DashboardFrame extends JFrame {
 
     private JButton selectedNav;
 
-    public DashboardFrame(String username) {
+    public DashboardFrame(UserDAO.LoginResult user) {
         super("Payroll Management System");
+        this.username = user.username();
+        this.role = user.role();
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 720);
         setLocationRelativeTo(null);
@@ -50,27 +55,39 @@ public class DashboardFrame extends JFrame {
 
         content.setBackground(BG);
 
-        add(buildTopBar(username), BorderLayout.NORTH);
+        add(buildTopBar(), BorderLayout.NORTH);
         add(buildNav(), BorderLayout.WEST);
         add(content, BorderLayout.CENTER);
 
-        content.add(buildDashboardPanel(), "dashboard");
-        addScreen("employees", EmployeeFrame::new);
-        addScreen("attendance", AttendanceFrame::new);
-        addScreen("payroll", PayrollFrame::new);
-        addScreen("payslip", PayslipFrame::new);
-        addScreen("setup", Setup::new);
+        if (can(Access.Module.DASHBOARD)) {
+            content.add(buildDashboardPanel(), "dashboard");
+        }
+        if (can(Access.Module.EMPLOYEES)) addScreen("employees", EmployeeFrame::new);
+        if (can(Access.Module.ATTENDANCE)) addScreen("attendance", AttendanceFrame::new);
+        if (can(Access.Module.PAYROLL)) addScreen("payroll", PayrollFrame::new);
+        if (can(Access.Module.PAYSLIP)) addScreen("payslip", () -> new PayslipFrame(user));
+        if (can(Access.Module.SETUP)) addScreen("setup", () -> new Setup(role));
+        if (can(Access.Module.PROFILE)) addScreen("profile", () -> new ProfilePanel(user, this::logout));
 
-        refreshStats();
-        showScreen("dashboard");
+        if (can(Access.Module.DASHBOARD)) {
+            refreshStats();
+            showScreen("dashboard");
+        } else if (can(Access.Module.PAYSLIP)) {
+            showScreen("payslip");
+        } else if (can(Access.Module.PROFILE)) {
+            showScreen("profile");
+        }
     }
 
-    /**
-     * Adds a screen to the content area. If the screen is a JFrame, its
-     * content pane is used instead of the window itself. If the screen fails
-     * to build, an error message is shown in its place so the dashboard
-     * still opens.
-     */
+    private boolean can(Access.Module m) {
+        return Access.can(role, m);
+    }
+
+    private void logout() {
+        dispose();
+        new LoginFrame().setVisible(true);
+    }
+
     private void addScreen(String name, Supplier<Component> factory) {
         try {
             Component screen = factory.get();
@@ -89,16 +106,13 @@ public class DashboardFrame extends JFrame {
         }
     }
 
-    // ---------- layout pieces ----------
-
-    private JPanel buildTopBar(String username) {
+    private JPanel buildTopBar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBackground(Color.WHITE);
         bar.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
                 new EmptyBorder(12, 24, 12, 24)));
 
-        // left: logo mark + system name
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
         JLabel logo = new JLabel("P", SwingConstants.CENTER);
@@ -113,7 +127,6 @@ public class DashboardFrame extends JFrame {
         left.add(logo);
         left.add(title);
 
-        // right: signed-in user
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         right.setOpaque(false);
         JLabel signed = new JLabel("Signed in as");
@@ -121,8 +134,11 @@ public class DashboardFrame extends JFrame {
         JLabel user = new JLabel(username);
         user.setFont(user.getFont().deriveFont(Font.BOLD, 13f));
         user.setForeground(TEXT);
+        JLabel roleLbl = new JLabel("(" + role + ")");
+        roleLbl.setForeground(MUTED);
         right.add(signed);
         right.add(user);
+        right.add(roleLbl);
 
         bar.add(left, BorderLayout.WEST);
         bar.add(right, BorderLayout.EAST);
@@ -144,20 +160,20 @@ public class DashboardFrame extends JFrame {
         menu.setAlignmentX(Component.LEFT_ALIGNMENT);
         nav.add(menu);
 
-        addNavButton("Dashboard", "dashboard");
-        addNavButton("Employees", "employees");
-        addNavButton("Attendance", "attendance");
-        addNavButton("Payroll", "payroll");
-        addNavButton("Payslip", "payslip");
-        addNavButton("Setup", "setup");
+        if (can(Access.Module.DASHBOARD)) addNavButton("Dashboard", "dashboard");
+        if (can(Access.Module.EMPLOYEES)) addNavButton("Employees", "employees");
+        if (can(Access.Module.ATTENDANCE)) addNavButton("Attendance", "attendance");
+        if (can(Access.Module.PAYROLL)) addNavButton("Payroll", "payroll");
+        if (can(Access.Module.PAYSLIP)) {
+            addNavButton("EMPLOYEE".equals(role) ? "My Payslip" : "Payslip", "payslip");
+        }
+        if (can(Access.Module.SETUP)) addNavButton("Setup", "setup");
+        if (can(Access.Module.PROFILE)) addNavButton("My Account", "profile");
 
         nav.add(Box.createVerticalGlue());
 
         JButton logout = navButton("Log out");
-        logout.addActionListener(e -> {
-            dispose();
-            new LoginFrame().setVisible(true);
-        });
+        logout.addActionListener(e -> logout());
         nav.add(logout);
         return nav;
     }
@@ -192,7 +208,6 @@ public class DashboardFrame extends JFrame {
         return b;
     }
 
-    /** Active item: light blue fill, blue bar on the left, blue bold text. */
     private void styleNav(JButton b, boolean on) {
         b.setBackground(on ? ACTIVE_BG : Color.WHITE);
         b.setForeground(on ? PRIMARY : TEXT_SOFT);
@@ -208,7 +223,6 @@ public class DashboardFrame extends JFrame {
         p.setBorder(new EmptyBorder(28, 32, 28, 32));
         p.setBackground(BG);
 
-        // page heading
         JLabel h = new JLabel("Dashboard");
         h.setFont(h.getFont().deriveFont(Font.BOLD, 24f));
         h.setForeground(TEXT);
@@ -223,7 +237,6 @@ public class DashboardFrame extends JFrame {
         p.add(date);
         p.add(Box.createVerticalStrut(28));
 
-        // attendance
         p.add(sectionHeader("Attendance today", null));
         p.add(Box.createVerticalStrut(12));
         JPanel row1 = new JPanel(new GridLayout(1, 4, 16, 0));
@@ -237,46 +250,55 @@ public class DashboardFrame extends JFrame {
         p.add(row1);
         p.add(Box.createVerticalStrut(32));
 
-        // payroll summary
-        lblPeriod.setForeground(MUTED);
-        p.add(sectionHeader("Payroll summary", lblPeriod));
-        p.add(Box.createVerticalStrut(12));
-        JPanel row2 = new JPanel(new GridLayout(1, 4, 16, 0));
-        row2.setOpaque(false);
-        row2.add(statCard("Gross pay", lblGross));
-        row2.add(statCard("Deductions", lblDeductions));
-        row2.add(statCard("Net pay", lblNet));
-        row2.add(statCard("Payslips generated", lblPayslips));
-        row2.setAlignmentX(Component.LEFT_ALIGNMENT);
-        row2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
-        p.add(row2);
-        p.add(Box.createVerticalStrut(32));
+        if (can(Access.Module.PAYROLL)) {
+            lblPeriod.setForeground(MUTED);
+            p.add(sectionHeader("Payroll summary", lblPeriod));
+            p.add(Box.createVerticalStrut(12));
+            JPanel row2 = new JPanel(new GridLayout(1, 4, 16, 0));
+            row2.setOpaque(false);
+            row2.add(statCard("Gross pay", lblGross));
+            row2.add(statCard("Deductions", lblDeductions));
+            row2.add(statCard("Net pay", lblNet));
+            row2.add(statCard("Payslips generated", lblPayslips));
+            row2.setAlignmentX(Component.LEFT_ALIGNMENT);
+            row2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
+            p.add(row2);
+            p.add(Box.createVerticalStrut(32));
+        }
 
-        // quick actions
-        p.add(sectionHeader("Quick actions", null));
-        p.add(Box.createVerticalStrut(12));
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        actions.setOpaque(false);
-        JButton add = primaryButton("Add employee");
-        JButton mark = secondaryButton("Mark attendance");
-        JButton gen = secondaryButton("Generate payslips");
-        add.addActionListener(e -> showScreen("employees"));
-        mark.addActionListener(e -> showScreen("attendance"));
-        gen.addActionListener(e -> showScreen("payroll"));
-        actions.add(add);
-        actions.add(mark);
-        actions.add(gen);
-        actions.setAlignmentX(Component.LEFT_ALIGNMENT);
-        actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        // FlowLayout adds 10px left gap; pull it back so buttons align with the cards
-        actions.setBorder(new EmptyBorder(0, -10, 0, 0));
-        p.add(actions);
+        boolean canAdd = can(Access.Module.EMPLOYEES);
+        boolean canMark = can(Access.Module.ATTENDANCE);
+        boolean canGen = can(Access.Module.PAYROLL);
+        if (canAdd || canMark || canGen) {
+            p.add(sectionHeader("Quick actions", null));
+            p.add(Box.createVerticalStrut(12));
+            JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+            actions.setOpaque(false);
+            if (canAdd) {
+                JButton add = primaryButton("Add employee");
+                add.addActionListener(e -> showScreen("employees"));
+                actions.add(add);
+            }
+            if (canMark) {
+                JButton mark = secondaryButton("Mark attendance");
+                mark.addActionListener(e -> showScreen("attendance"));
+                actions.add(mark);
+            }
+            if (canGen) {
+                JButton gen = secondaryButton("Generate payslips");
+                gen.addActionListener(e -> showScreen("payroll"));
+                actions.add(gen);
+            }
+            actions.setAlignmentX(Component.LEFT_ALIGNMENT);
+            actions.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+            actions.setBorder(new EmptyBorder(0, -10, 0, 0));
+            p.add(actions);
+        }
 
         p.add(Box.createVerticalGlue());
         return p;
     }
 
-    /** Section title on the left, optional muted note on the right. */
     private JPanel sectionHeader(String title, JLabel note) {
         JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
@@ -334,7 +356,6 @@ public class DashboardFrame extends JFrame {
         return card;
     }
 
-    /** Flat white card with a hairline border. */
     private static class Card extends JPanel {
         Card() {
             setOpaque(false);
@@ -353,8 +374,6 @@ public class DashboardFrame extends JFrame {
         }
     }
 
-    // ---------- behavior ----------
-
     private void showScreen(String screen) {
         cardLayout.show(content, screen);
         for (Component c : nav.getComponents()) {
@@ -370,8 +389,8 @@ public class DashboardFrame extends JFrame {
         }
     }
 
-    /** Reloads the dashboard numbers from the database. */
     public void refreshStats() {
+        if (!can(Access.Module.DASHBOARD)) return;
         try {
             DashboardDAO.Stats s = new DashboardDAO().load();
             lblActive.setText(String.valueOf(s.active()));

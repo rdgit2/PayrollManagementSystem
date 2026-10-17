@@ -9,7 +9,6 @@ import javax.swing.border.EmptyBorder;
 
 public class LoginFrame extends JFrame {
 
-    // ---------- palette (identical to DashboardFrame) ----------
     private static final Color PRIMARY   = new Color(0x1D4ED8);
     private static final Color BG        = new Color(0xF8FAFC);
     private static final Color BORDER    = new Color(0xE2E8F0);
@@ -33,7 +32,6 @@ public class LoginFrame extends JFrame {
         add(buildTopBar(), BorderLayout.NORTH);
         add(buildBody(), BorderLayout.CENTER);
 
-        // Enter key = Sign in
         getRootPane().setDefaultButton(btnLogin);
 
         addWindowListener(new WindowAdapter() {
@@ -42,8 +40,6 @@ public class LoginFrame extends JFrame {
             }
         });
     }
-
-    // ---------- header (same as dashboard) ----------
 
     private JPanel buildTopBar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
@@ -67,8 +63,6 @@ public class LoginFrame extends JFrame {
         bar.add(title);
         return bar;
     }
-
-    // ---------- centered sign-in card ----------
 
     private JPanel buildBody() {
         JPanel body = new JPanel(new GridBagLayout());
@@ -102,7 +96,7 @@ public class LoginFrame extends JFrame {
         card.add(fieldLabel("Password"));
         card.add(Box.createVerticalStrut(6));
         styleField(txtPass, "Enter your password");
-        txtPass.putClientProperty("JPasswordField.showRevealButton", true); // FlatLaf eye icon
+        txtPass.putClientProperty("JPasswordField.showRevealButton", true);
         card.add(txtPass);
         card.add(Box.createVerticalStrut(10));
 
@@ -150,10 +144,9 @@ public class LoginFrame extends JFrame {
         f.setAlignmentX(Component.LEFT_ALIGNMENT);
         f.setPreferredSize(new Dimension(328, 40));
         f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        f.putClientProperty("JTextField.placeholderText", placeholder); // FlatLaf placeholder
+        f.putClientProperty("JTextField.placeholderText", placeholder);
     }
 
-    /** Flat white card with a hairline border (same as the dashboard cards). */
     private static class Card extends JPanel {
         Card() {
             setOpaque(false);
@@ -171,8 +164,6 @@ public class LoginFrame extends JFrame {
             super.paintComponent(g);
         }
     }
-
-    // ---------- behavior ----------
 
     private void doLogin() {
         String username = txtUser.getText().trim();
@@ -192,16 +183,8 @@ public class LoginFrame extends JFrame {
                 return;
             }
 
-            // Employee accounts must not see the admin dashboard.
-            // TODO: open the employee self-service screen here once it exists.
-            if ("EMPLOYEE".equals(user.role())) {
-                lblError.setText("The employee portal is not available yet.");
-                txtPass.setText("");
-                return;
-            }
-
             dispose();
-            new DashboardFrame(user.username()).setVisible(true);
+            new DashboardFrame(user).setVisible(true);
         } catch (SQLException ex) {
             ex.printStackTrace();
             lblError.setText("Cannot reach the database. Is Derby running?");
@@ -211,4 +194,4 @@ public class LoginFrame extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
     }
-}   
+}
