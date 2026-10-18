@@ -12,8 +12,7 @@ import model.Employee;
 
 public class EmployeeDAO {
 
-    /** Initial password for new employee accounts. Public so the screen can show it. */
-    public static final String DEFAULT_PASSWORD = "employee123";
+    public static final String DEFAULT_PASSWORD = "Employee123";
 
     private static final String SELECT =
         "SELECT e.employee_id, e.employee_no, e.first_name, e.last_name, e.contact_no, "
@@ -22,8 +21,6 @@ public class EmployeeDAO {
       + "FROM EMPLOYEES e "
       + "JOIN DEPARTMENTS d ON e.department_id = d.department_id "
       + "JOIN JOB_POSITIONS p ON e.position_id = p.position_id ";
-
-    // ---------- read ----------
 
     public List<Employee> findAll() throws SQLException {
         return query(SELECT + "ORDER BY e.last_name, e.first_name");
@@ -41,10 +38,7 @@ public class EmployeeDAO {
         List<Employee> list = query(SELECT + "WHERE e.employee_id = ?", id);
         return list.isEmpty() ? null : list.get(0);
     }
-
-    // ---------- write ----------
-
-    /** Inserts the employee and creates their EMPLOYEE login. Returns the new id. */
+ 
     public int insert(Employee e) throws SQLException {
         String sql = "INSERT INTO EMPLOYEES (employee_no, first_name, last_name, contact_no, "
                    + "email, address, date_hired, department_id, position_id, status) "
@@ -71,7 +65,6 @@ public class EmployeeDAO {
         }
     }
 
-    /** Updates the employee and keeps their login (username, name, status) in sync. */
     public void update(Employee e) throws SQLException {
         String sql = "UPDATE EMPLOYEES SET employee_no = ?, first_name = ?, last_name = ?, "
                    + "contact_no = ?, email = ?, address = ?, date_hired = ?, "
@@ -100,7 +93,6 @@ public class EmployeeDAO {
         }
     }
 
-    /** Use this instead of deleting: attendance and payslips still point to the employee. */
     public void setStatus(int employeeId, String status) throws SQLException {
         try (Connection c = DBConnection.get()) {
             c.setAutoCommit(false);
@@ -125,8 +117,7 @@ public class EmployeeDAO {
         }
     }
 
-    // ---------- helpers ----------
-
+    //helpers
     private void createAccount(Connection c, Employee e, int employeeId) throws SQLException {
         String sql = "INSERT INTO USERS (username, password_hash, full_name, user_role, status, employee_id) "
                    + "VALUES (?, ?, ?, 'EMPLOYEE', ?, ?)";
@@ -140,13 +131,12 @@ public class EmployeeDAO {
         }
     }
 
-    /** Sets parameters 1-10, shared by insert and update. */
     private void bind(PreparedStatement ps, Employee e) throws SQLException {
         ps.setString(1, e.getEmployeeNo());
         ps.setString(2, e.getFirstName());
         ps.setString(3, e.getLastName());
         ps.setString(4, nullIfBlank(e.getContactNo()));
-        ps.setString(5, nullIfBlank(e.getEmail()));   // email is UNIQUE, so blank must be NULL
+        ps.setString(5, nullIfBlank(e.getEmail()));   
         ps.setString(6, nullIfBlank(e.getAddress()));
         ps.setDate(7, Date.valueOf(e.getDateHired()));
         ps.setInt(8, e.getDepartmentId());

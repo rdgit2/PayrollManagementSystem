@@ -11,8 +11,6 @@ public class Payslips {
     private BigDecimal basicPay = BigDecimal.ZERO;
     private BigDecimal overtimePay = BigDecimal.ZERO;
     private LocalDateTime dateGenerated;
-
-    // computed by the PAYSLIP_SUMMARY view / joins (display only)
     private BigDecimal grossPay = BigDecimal.ZERO;
     private BigDecimal totalDeductions = BigDecimal.ZERO;
     private BigDecimal netPay = BigDecimal.ZERO;

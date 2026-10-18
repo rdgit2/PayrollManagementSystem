@@ -5,9 +5,9 @@ public class User {
     private String username;
     private String passwordHash;
     private String fullName;
-    private String userRole;   // ADMIN, HR, PAYROLL, EMPLOYEE
-    private String status;     // ACTIVE, INACTIVE
-    private Integer employeeId; // only set for EMPLOYEE accounts
+    private String userRole;   
+    private String status;     
+    private Integer employeeId; 
 
     public User() { }
 

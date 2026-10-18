@@ -26,7 +26,6 @@ public class PayPeriodDAO {
         return list;
     }
 
-    /** The latest OPEN period, or null if none. */
     public PayPeriod findOpen() throws SQLException {
         String sql = "SELECT period_id, period_start, period_end, pay_date, status FROM PAY_PERIODS "
                    + "WHERE status = 'OPEN' ORDER BY period_start DESC FETCH FIRST ROW ONLY";

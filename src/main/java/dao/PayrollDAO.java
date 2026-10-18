@@ -7,9 +7,8 @@ import java.util.List;
 
 public class PayrollDAO {
 
-    // ---- pay rules (change as needed) ----
     public static final double WORKING_DAYS_PER_MONTH = 26;
-    public static final double LATE_DEDUCTION = 100.0;   // per late
+    public static final double LATE_DEDUCTION = 100.0;   
 
     public record PayrollRow(String employeeNo, String name,
                              double monthlySalary, double dailyRate,
@@ -62,7 +61,6 @@ public class PayrollDAO {
         return rows;
     }
 
-    /** Reads a salary even if it is stored as text such as "25,000.00". */
     private static double parseMoney(String s) {
         if (s == null) return 0;
         try {

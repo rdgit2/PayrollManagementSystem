@@ -22,8 +22,6 @@ public class PayslipDAO {
         public int noPay;
     }
 
-
-
     public SaveResult savePayslips(List<PayrollRow> rows, LocalDate from, LocalDate to,
                                    int processedBy) throws SQLException {
         SaveResult result = new SaveResult();
@@ -68,7 +66,6 @@ public class PayslipDAO {
         }
     }
 
-    /** One row of the employee combo box (a saved payslip). */
     public record PayslipItem(int payslipId, int employeeId, String employeeNo, String name) {
         @Override
         public String toString() {
@@ -118,7 +115,6 @@ public class PayslipDAO {
         return list;
     }
 
-    /** Full payslip for display, or null if it does not exist. */
     public PayslipDetail getDetail(int payslipId) throws SQLException {
         String sql = "SELECT e.employee_no, e.first_name, e.last_name, d.department_name, "
                    + "jp.position_title, pp.period_start, pp.period_end, p.basic_pay, p.overtime_pay "
@@ -194,7 +190,7 @@ public class PayslipDAO {
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setDate(1, Date.valueOf(from));
             ps.setDate(2, Date.valueOf(to));
-            ps.setDate(3, Date.valueOf(to));          // pay date defaults to the period end
+            ps.setDate(3, Date.valueOf(to));          
             ps.setString(4, PERIOD_STATUS);
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {

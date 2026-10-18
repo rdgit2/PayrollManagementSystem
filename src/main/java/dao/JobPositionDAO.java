@@ -44,7 +44,6 @@ public class JobPositionDAO {
         }
     }
 
-    /** Fails (SQL state 23503) if any employee still holds this position. */
     public void delete(int positionId) throws SQLException {
         try (Connection c = DBConnection.get();
              PreparedStatement ps = c.prepareStatement("DELETE FROM JOB_POSITIONS WHERE position_id = ?")) {

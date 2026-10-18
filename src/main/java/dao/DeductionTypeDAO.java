@@ -44,7 +44,6 @@ public class DeductionTypeDAO {
         }
     }
 
-    /** Fails (SQL state 23503) if the type is already used on a payslip. */
     public void delete(int deductionTypeId) throws SQLException {
         try (Connection c = DBConnection.get();
              PreparedStatement ps = c.prepareStatement("DELETE FROM DEDUCTION_TYPES WHERE deduction_type_id = ?")) {

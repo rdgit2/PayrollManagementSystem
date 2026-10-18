@@ -14,13 +14,10 @@ public class Employee {
     private LocalDate dateHired;
     private int departmentId;
     private int positionId;
-    private String status;      // ACTIVE, INACTIVE
-
-    // filled by joins for display only, not columns of EMPLOYEES
+    private String status;      
     private String departmentName;
     private String positionTitle;
-    private BigDecimal monthlySalary;   // comes from JOB_POSITIONS
-
+    private BigDecimal monthlySalary;   
     public Employee() { }
 
     public Employee(int employeeId, String employeeNo, String firstName, String lastName,

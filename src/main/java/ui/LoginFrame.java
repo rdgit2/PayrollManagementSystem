@@ -23,7 +23,7 @@ public class LoginFrame extends JFrame {
     private final JButton btnLogin = new JButton("Sign in");
 
     public LoginFrame() {
-        super("Payroll Management System");
+        super("AZM Payroll System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 720);
         setLocationRelativeTo(null);
@@ -48,18 +48,10 @@ public class LoginFrame extends JFrame {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
                 new EmptyBorder(12, 14, 12, 24)));
 
-        JLabel logo = new JLabel("P", SwingConstants.CENTER);
-        logo.setOpaque(true);
-        logo.setBackground(PRIMARY);
-        logo.setForeground(Color.WHITE);
-        logo.setFont(logo.getFont().deriveFont(Font.BOLD, 15f));
-        logo.setPreferredSize(new Dimension(30, 30));
-
-        JLabel title = new JLabel("Payroll Management System");
+        JLabel title = new JLabel("AZM Payroll System");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         title.setForeground(TEXT);
 
-        bar.add(logo);
         bar.add(title);
         return bar;
     }
@@ -121,12 +113,6 @@ public class LoginFrame extends JFrame {
         card.add(btnLogin);
 
         card.add(Box.createVerticalGlue());
-
-        JLabel note = new JLabel("Authorized personnel only");
-        note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
-        note.setForeground(MUTED);
-        note.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(note);
 
         body.add(card);
         return body;

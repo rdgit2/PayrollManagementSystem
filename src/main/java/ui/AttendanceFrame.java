@@ -15,11 +15,11 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import model.Attendance;
 
 public class AttendanceFrame extends JPanel {
 
-    // ---------- palette (same as the other screens) ----------
     private static final Color PRIMARY   = new Color(0x1D4ED8);
     private static final Color BG        = new Color(0xF8FAFC);
     private static final Color BORDER    = new Color(0xE2E8F0);
@@ -27,17 +27,15 @@ public class AttendanceFrame extends JPanel {
     private static final Color TEXT_SOFT = new Color(0x334155);
     private static final Color MUTED     = new Color(0x64748B);
     private static final Color ERROR_RED = new Color(0xDC2626);
-    private static final Color OK         = new Color(0x15803D);
+    private static final Color OK        = new Color(0x15803D);
     private static final Color ORANGE    = new Color(0xD97706);
 
-    // ---------- attendance rules ----------
     private static final LocalTime WORK_START = LocalTime.of(8, 0);
-    private static final int GRACE_MINUTES = 15;       // time in after 08:15 = LATE
-    private static final double LUNCH_HOURS = 1.0;     // taken off the time in -> time out total
+    private static final int GRACE_MINUTES = 15;        // late only after 08:15
+    private static final double LUNCH_HOURS = 1.0;      // taken off the hours worked
     private static final String UNMARKED = "NOT MARKED";
     private static final DateTimeFormatter HM = DateTimeFormatter.ofPattern("HH:mm");
 
-    // table columns
     private static final int COL_NO = 0;
     private static final int COL_NAME = 1;
     private static final int COL_IN = 2;
@@ -47,7 +45,6 @@ public class AttendanceFrame extends JPanel {
 
     private final AttendanceDAO dao = new AttendanceDAO();
 
-    // rows.get(i) is the Attendance record shown in table row i (the table is never sorted)
     private List<Attendance> rows = new ArrayList<>();
 
     private final DefaultTableModel model = new DefaultTableModel(
@@ -62,8 +59,6 @@ public class AttendanceFrame extends JPanel {
     private final JButton btnLoad = secondaryButton("Load");
     private final JButton btnMarkAll = secondaryButton("Mark all present");
     private final JButton btnSave = primaryButton("Save attendance");
-
-    // stops the table listener from reacting to changes that the code itself makes
     private boolean updating = false;
 
     public AttendanceFrame() {
@@ -76,11 +71,10 @@ public class AttendanceFrame extends JPanel {
         add(buildFooter(), BorderLayout.SOUTH);
 
         btnLoad.addActionListener(e -> loadAttendance());
-        txtDate.addActionListener(e -> loadAttendance());   // pressing Enter in the date box
+        txtDate.addActionListener(e -> loadAttendance());   
         btnMarkAll.addActionListener(e -> markAllPresent());
         btnSave.addActionListener(e -> save());
 
-        // react when the user edits a time or picks a status
         model.addTableModelListener(e -> {
             if (updating) return;
             if (e.getType() != TableModelEvent.UPDATE || e.getFirstRow() < 0) return;
@@ -108,15 +102,9 @@ public class AttendanceFrame extends JPanel {
         h.setForeground(TEXT);
         h.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel sub = new JLabel("Mark each active employee for a day, then save");
-        sub.setForeground(MUTED);
-        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
-
         top.add(h);
         top.add(Box.createVerticalStrut(4));
-        top.add(sub);
 
-        // toolbar: date + Load on the left, Mark all present + Save on the right
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.setOpaque(false);
         toolbar.setBorder(new EmptyBorder(20, 0, 14, 0));
@@ -159,6 +147,10 @@ public class AttendanceFrame extends JPanel {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         table.getTableHeader().setFont(table.getTableHeader().getFont().deriveFont(Font.BOLD, 12f));
+        TableCellRenderer headerRenderer = table.getTableHeader().getDefaultRenderer();
+        if (headerRenderer instanceof DefaultTableCellRenderer) {
+            ((DefaultTableCellRenderer) headerRenderer).setHorizontalAlignment(SwingConstants.CENTER);
+        }
         table.setForeground(TEXT);
 
         int[] widths = {110, 220, 90, 90, 80, 130};
@@ -166,14 +158,14 @@ public class AttendanceFrame extends JPanel {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
 
-        // center the time in, time out and hours columns
         DefaultTableCellRenderer center = new DefaultTableCellRenderer();
         center.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(COL_NO).setCellRenderer(center);
+        table.getColumnModel().getColumn(COL_NAME).setCellRenderer(center);
         table.getColumnModel().getColumn(COL_IN).setCellRenderer(center);
         table.getColumnModel().getColumn(COL_OUT).setCellRenderer(center);
         table.getColumnModel().getColumn(COL_HOURS).setCellRenderer(center);
 
-        // status column: colored text, and a dropdown when you click it
         table.getColumnModel().getColumn(COL_STATUS).setCellRenderer(new StatusRenderer());
         JComboBox<String> statusBox = new JComboBox<>(new String[]{"PRESENT", "LATE", "ABSENT", "ON_LEAVE"});
         table.getColumnModel().getColumn(COL_STATUS).setCellEditor(new DefaultCellEditor(statusBox));
@@ -191,21 +183,16 @@ public class AttendanceFrame extends JPanel {
 
         lblSummary.setForeground(MUTED);
 
-        JLabel note = new JLabel("Type times as HH:mm (for example 08:00). Hours = time in to time out, minus 1 hour lunch.");
-        note.setForeground(MUTED);
-        note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
-
         footer.add(lblSummary, BorderLayout.WEST);
-        footer.add(note, BorderLayout.EAST);
         return footer;
     }
 
-    /** Colors the Status column: green = PRESENT, orange = LATE, red = ABSENT, blue = ON_LEAVE. */
     private static class StatusRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable t, Object v, boolean sel,
                                                        boolean focus, int r, int c) {
             super.getTableCellRendererComponent(t, v, sel, focus, r, c);
+            setHorizontalAlignment(SwingConstants.CENTER);
             setFont(getFont().deriveFont(Font.BOLD, 12f));
             if (!sel) {
                 String s = String.valueOf(v);
@@ -219,9 +206,6 @@ public class AttendanceFrame extends JPanel {
         }
     }
 
-    // ---------- loading ----------
-
-    /** Reads the date box, then fills the table with every active employee for that date. */
     private void loadAttendance() {
         LocalDate date = readDate();
         if (date == null) return;
@@ -252,9 +236,6 @@ public class AttendanceFrame extends JPanel {
         }
     }
 
-    // ---------- reacting to edits ----------
-
-    /** The user typed a time. Work out the status and the hours again. */
     private void onTimeEdited(int row) {
         String status = statusAt(row);
         LocalTime in = parseTime(textAt(row, COL_IN));
@@ -262,7 +243,6 @@ public class AttendanceFrame extends JPanel {
 
         updating = true;
         try {
-            // an employee on leave stays on leave, whatever times are typed
             if (!status.equals("ON_LEAVE")) {
                 if (in != null) {
                     boolean late = in.isAfter(WORK_START.plusMinutes(GRACE_MINUTES));
@@ -279,14 +259,12 @@ public class AttendanceFrame extends JPanel {
         updateSummary();
     }
 
-    /** The user picked a status from the dropdown. Fill or clear the times to match. */
     private void onStatusEdited(int row) {
         String status = statusAt(row);
 
         updating = true;
         try {
             if (status.equals("ABSENT") || status.equals("ON_LEAVE")) {
-                // no working time on these days
                 model.setValueAt("", row, COL_IN);
                 model.setValueAt("", row, COL_OUT);
             } else if (status.equals("PRESENT")) {
@@ -306,7 +284,6 @@ public class AttendanceFrame extends JPanel {
         updateSummary();
     }
 
-    /** Sets every row to PRESENT 08:00 - 17:00, except employees marked ON_LEAVE. */
     private void markAllPresent() {
         if (table.isEditing()) {
             table.getCellEditor().stopCellEditing();
@@ -315,7 +292,7 @@ public class AttendanceFrame extends JPanel {
         updating = true;
         try {
             for (int i = 0; i < model.getRowCount(); i++) {
-                if (statusAt(i).equals("ON_LEAVE")) continue;
+                if (statusAt(i).equals("ON_LEAVE")) continue;   
                 model.setValueAt("08:00", i, COL_IN);
                 model.setValueAt("17:00", i, COL_OUT);
                 model.setValueAt(hoursText(LocalTime.of(8, 0), LocalTime.of(17, 0)), i, COL_HOURS);
@@ -326,8 +303,6 @@ public class AttendanceFrame extends JPanel {
         }
         updateSummary();
     }
-
-    // ---------- saving ----------
 
     private void save() {
         if (table.isEditing()) {
@@ -341,7 +316,7 @@ public class AttendanceFrame extends JPanel {
 
         for (int i = 0; i < model.getRowCount(); i++) {
             String status = statusAt(i);
-            if (status.equals(UNMARKED)) continue;   // not marked, so nothing to save
+            if (status.equals(UNMARKED)) continue;   
 
             String name = textAt(i, COL_NAME);
             String inText = textAt(i, COL_IN);
@@ -361,8 +336,8 @@ public class AttendanceFrame extends JPanel {
                 showMessage(name + ": enter a time in, or set the status to ABSENT.");
                 return;
             }
-            if (in != null && out != null && out.isBefore(in)) {
-                showMessage(name + ": time out cannot be earlier than time in.");
+            if (in != null && out != null && !out.isAfter(in)) {
+                showMessage(name + ": time out must be later than time in.");
                 return;
             }
 
@@ -396,8 +371,7 @@ public class AttendanceFrame extends JPanel {
         }
     }
 
-    // ---------- small helpers ----------
-
+    // ---------- helpers ----------
     private LocalDate readDate() {
         try {
             return LocalDate.parse(txtDate.getText().trim());
@@ -407,7 +381,6 @@ public class AttendanceFrame extends JPanel {
         }
     }
 
-    /** Text of a table cell, never null. */
     private String textAt(int row, int col) {
         Object v = model.getValueAt(row, col);
         return v == null ? "" : v.toString().trim();
@@ -418,7 +391,6 @@ public class AttendanceFrame extends JPanel {
         return s.isEmpty() ? UNMARKED : s;
     }
 
-    /** Turns "08:30" into a LocalTime. Returns null for blank or invalid text. */
     private LocalTime parseTime(String text) {
         if (text == null || text.trim().isEmpty()) return null;
         try {
@@ -432,7 +404,6 @@ public class AttendanceFrame extends JPanel {
         return t == null ? "" : t.format(HM);
     }
 
-    /** Hours worked = (time out - time in) minus lunch. Shows 0.0 if either time is missing. */
     private String hoursText(LocalTime in, LocalTime out) {
         double hours = 0.0;
         if (in != null && out != null) {
@@ -442,7 +413,6 @@ public class AttendanceFrame extends JPanel {
         return String.format("%.1f", hours);
     }
 
-    /** Updates the count line at the bottom left. */
     private void updateSummary() {
         int present = 0, late = 0, absent = 0, onLeave = 0, unmarked = 0;
         for (int i = 0; i < model.getRowCount(); i++) {
@@ -453,7 +423,8 @@ public class AttendanceFrame extends JPanel {
             else if (s.equals("ON_LEAVE")) onLeave++;
             else unmarked++;
         }
-        lblSummary.setText(model.getRowCount() + " employees   |   "
+        int total = model.getRowCount();
+        lblSummary.setText(total + (total == 1 ? " employee" : " employees") + "   |   "
                 + present + " present, " + late + " late, " + absent + " absent, "
                 + onLeave + " on leave, " + unmarked + " not marked");
     }
@@ -467,8 +438,6 @@ public class AttendanceFrame extends JPanel {
         JOptionPane.showMessageDialog(this, "Database error: " + ex.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
     }
-
-    // ---------- button styles ----------
 
     private static JButton primaryButton(String text) {
         JButton b = new JButton(text);

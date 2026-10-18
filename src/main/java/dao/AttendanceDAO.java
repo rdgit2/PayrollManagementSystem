@@ -15,11 +15,6 @@ import model.Attendance;
 
 public class AttendanceDAO {
 
-    /**
-     * Returns one row for every ACTIVE employee.
-     * If the employee already has attendance saved for that date, the row is filled in.
-     * If not, the row has status = null (meaning "not marked yet").
-     */
     public List<Attendance> findForDate(LocalDate date) throws SQLException {
         String sql = "SELECT e.employee_id, e.employee_no, e.first_name, e.last_name, "
                    + "a.attendance_id, a.time_in, a.time_out, a.status "
@@ -40,14 +35,14 @@ public class AttendanceDAO {
                     a.setEmployeeNo(rs.getString("employee_no"));
                     a.setEmployeeName(rs.getString("last_name") + ", " + rs.getString("first_name"));
                     a.setAttendanceDate(date);
-                    a.setAttendanceId(rs.getInt("attendance_id"));   // 0 when there is no saved row
+                    a.setAttendanceId(rs.getInt("attendance_id"));   
 
                     Time in = rs.getTime("time_in");
                     Time out = rs.getTime("time_out");
                     a.setTimeIn(in == null ? null : in.toLocalTime());
                     a.setTimeOut(out == null ? null : out.toLocalTime());
 
-                    a.setStatus(rs.getString("status"));              // null when not marked yet
+                    a.setStatus(rs.getString("status"));              
                     list.add(a);
                 }
             }
@@ -55,11 +50,6 @@ public class AttendanceDAO {
         return list;
     }
 
-    /**
-     * Saves all the given rows in one transaction.
-     * For each row: try to UPDATE the existing record for that employee and date.
-     * If nothing was updated, INSERT a new record instead.
-     */
     public void saveAll(LocalDate date, List<Attendance> rows) throws SQLException {
         String updateSql = "UPDATE ATTENDANCE SET time_in = ?, time_out = ?, status = ? "
                          + "WHERE employee_id = ? AND attendance_date = ?";
@@ -99,7 +89,6 @@ public class AttendanceDAO {
         }
     }
 
-    /** Sets a TIME parameter, or NULL when there is no time. */
     private void setTime(PreparedStatement ps, int index, LocalTime time) throws SQLException {
         if (time == null) {
             ps.setNull(index, Types.TIME);

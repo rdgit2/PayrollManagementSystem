@@ -8,8 +8,7 @@ public class PayPeriod {
     private LocalDate periodStart;
     private LocalDate periodEnd;
     private LocalDate payDate;
-    private String status;   // OPEN, CLOSED
-
+    private String status;   
     public PayPeriod() { }
 
     public int getPeriodId() { return periodId; }

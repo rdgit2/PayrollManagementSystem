@@ -44,7 +44,6 @@ public class DepartmentDAO {
         }
     }
 
-    /** Fails (SQL state 23503) if any employee still belongs to this department. */
     public void delete(int departmentId) throws SQLException {
         try (Connection c = DBConnection.get();
              PreparedStatement ps = c.prepareStatement("DELETE FROM DEPARTMENTS WHERE department_id = ?")) {

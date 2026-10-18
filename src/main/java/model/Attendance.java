@@ -4,14 +4,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 public class Attendance {
-    private int attendanceId;          // 0 = not saved yet
+    private int attendanceId;          
     private int employeeId;
     private LocalDate attendanceDate;
     private LocalTime timeIn;
     private LocalTime timeOut;
-    private String status;             // PRESENT, LATE, ABSENT, ON_LEAVE (null = not marked yet)
-
-    // for display only
+    private String status;             
     private String employeeNo;
     private String employeeName;
 

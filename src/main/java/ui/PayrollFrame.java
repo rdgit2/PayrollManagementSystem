@@ -3,19 +3,27 @@ package ui;
 import dao.PayrollDAO;
 import dao.PayrollDAO.PayrollRow;
 import dao.PayslipDAO;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
-public class PayrollFrame extends JFrame {
+public class PayrollFrame extends JPanel {
 
-    private final JTextField fromField = new JTextField(10);
-    private final JTextField toField = new JTextField(10);
+    private static final Color PRIMARY   = new Color(0x1D4ED8);
+    private static final Color BG        = new Color(0xF8FAFC);
+    private static final Color BORDER    = new Color(0xE2E8F0);
+    private static final Color TEXT      = new Color(0x0F172A);
+    private static final Color TEXT_SOFT = new Color(0x334155);
+
+    private final JTextField fromField = new JTextField();
+    private final JTextField toField = new JTextField();
     private final JLabel totalLabel = new JLabel("Total net pay: 0.00");
     private final DefaultTableModel model = new DefaultTableModel(new Object[]{
             "Employee no", "Name", "Daily rate", "Present", "Late", "On leave",
@@ -25,54 +33,126 @@ public class PayrollFrame extends JFrame {
     private final JTable table = new JTable(model);
     private final PayrollDAO dao = new PayrollDAO();
 
-    // kept so a selected table row can be matched to its PayrollRow
     private List<PayrollRow> currentRows = new ArrayList<>();
     private LocalDate lastFrom, lastTo;
 
-    // CHANGE later: the logged-in user's ID (used for PROCESSED_BY)
     private int currentUserId = 1;
 
     public PayrollFrame() {
-        super("Payroll");
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(1100, 460);
-        setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
+        setBackground(BG);
+        setBorder(new EmptyBorder(28, 32, 24, 32));
 
         LocalDate today = LocalDate.now();
         fromField.setText(today.withDayOfMonth(1).toString());
         toField.setText(today.toString());
 
-        JButton computeBtn = new JButton("Compute");
-        computeBtn.addActionListener(e -> compute());
-
-        JButton payslipBtn = new JButton("View Payslip");
-        payslipBtn.addActionListener(e -> showPayslip());
-
-        JButton saveBtn = new JButton("Save Payslips");
-        saveBtn.addActionListener(e -> savePayslips());
-
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        top.add(new JLabel("From (yyyy-MM-dd):"));
-        top.add(fromField);
-        top.add(new JLabel("To:"));
-        top.add(toField);
-        top.add(computeBtn);
-        top.add(payslipBtn);
-        top.add(saveBtn);
-
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        bottom.add(totalLabel);
-
-        setLayout(new BorderLayout());
-        add(top, BorderLayout.NORTH);
-        add(new JScrollPane(table), BorderLayout.CENTER);
-        add(bottom, BorderLayout.SOUTH);
+        add(buildHeader(), BorderLayout.NORTH);
+        add(buildTable(), BorderLayout.CENTER);
+        add(buildFooter(), BorderLayout.SOUTH);
     }
 
-    /** Use this once the dashboard can pass the logged-in user's ID. */
     public PayrollFrame(int userId) {
         this();
         this.currentUserId = userId;
+    }
+
+    private JPanel buildHeader() {
+        JPanel top = new JPanel();
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+        top.setOpaque(false);
+
+        JLabel h = new JLabel("Payroll");
+        h.setFont(h.getFont().deriveFont(Font.BOLD, 24f));
+        h.setForeground(TEXT);
+        h.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        top.add(h);
+        top.add(Box.createVerticalStrut(4));
+
+        JPanel toolbar = new JPanel(new BorderLayout());
+        toolbar.setOpaque(false);
+        toolbar.setBorder(new EmptyBorder(20, 0, 14, 0));
+        toolbar.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        fromField.setPreferredSize(new Dimension(130, 38));
+        fromField.putClientProperty("JTextField.placeholderText", "yyyy-mm-dd");
+        toField.setPreferredSize(new Dimension(130, 38));
+        toField.putClientProperty("JTextField.placeholderText", "yyyy-mm-dd");
+
+        JButton computeBtn = secondaryButton("Compute");
+        computeBtn.addActionListener(e -> compute());
+
+        JButton payslipBtn = secondaryButton("View Payslip");
+        payslipBtn.addActionListener(e -> showPayslip());
+
+        JButton saveBtn = primaryButton("Save Payslips");
+        saveBtn.addActionListener(e -> savePayslips());
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        left.setOpaque(false);
+        left.add(fieldLabel("From"));
+        left.add(fromField);
+        left.add(fieldLabel("To"));
+        left.add(toField);
+        left.add(computeBtn);
+        left.add(payslipBtn);
+
+        toolbar.add(left, BorderLayout.WEST);
+        toolbar.add(saveBtn, BorderLayout.EAST);
+        top.add(toolbar);
+
+        return top;
+    }
+
+    private JScrollPane buildTable() {
+        table.setRowHeight(38);
+        table.setShowVerticalLines(false);
+        table.setGridColor(BORDER);
+        table.setFillsViewportHeight(true);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setFont(table.getTableHeader().getFont().deriveFont(Font.BOLD, 12f));
+        TableCellRenderer headerRenderer = table.getTableHeader().getDefaultRenderer();
+        if (headerRenderer instanceof DefaultTableCellRenderer) {
+            ((DefaultTableCellRenderer) headerRenderer).setHorizontalAlignment(SwingConstants.CENTER);
+        }
+        table.setForeground(TEXT);
+
+        int[] widths = {100, 170, 90, 70, 60, 80, 70, 100, 100, 110};
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
+
+        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
+        center.setHorizontalAlignment(SwingConstants.CENTER);
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(center);
+        }
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER));
+        scroll.getViewport().setBackground(Color.WHITE);
+        return scroll;
+    }
+
+    private JPanel buildFooter() {
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setOpaque(false);
+        footer.setBorder(new EmptyBorder(14, 0, 0, 0));
+
+        totalLabel.setFont(totalLabel.getFont().deriveFont(Font.BOLD, 14f));
+        totalLabel.setForeground(TEXT);
+
+        footer.add(totalLabel, BorderLayout.EAST);
+        return footer;
+    }
+
+    private JLabel fieldLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(l.getFont().deriveFont(Font.BOLD, 12f));
+        l.setForeground(TEXT_SOFT);
+        return l;
     }
 
     private void compute() {
@@ -126,7 +206,8 @@ public class PayrollFrame extends JFrame {
                 new String[]{"Late (" + r.late() + " x " + money(PayrollDAO.LATE_DEDUCTION) + ")"},
                 new double[]{r.deductions()});
 
-        JDialog d = new JDialog(this, "Payslip", Dialog.ModalityType.APPLICATION_MODAL);
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        JDialog d = new JDialog(owner, "Payslip", Dialog.ModalityType.APPLICATION_MODAL);
         d.setContentPane(panel);
         d.setSize(520, 420);
         d.setLocationRelativeTo(this);
@@ -157,5 +238,32 @@ public class PayrollFrame extends JFrame {
 
     private static String money(double v) {
         return String.format("%,.2f", v);
+    }
+
+    private static JButton primaryButton(String text) {
+        JButton b = new JButton(text);
+        b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
+        b.setForeground(Color.WHITE);
+        b.setBackground(PRIMARY);
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(150, 38));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        return b;
+    }
+
+    private static JButton secondaryButton(String text) {
+        JButton b = new JButton(text);
+        b.setFont(b.getFont().deriveFont(Font.PLAIN, 13f));
+        b.setForeground(TEXT_SOFT);
+        b.setBackground(Color.WHITE);
+        b.setOpaque(true);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(120, 38));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        return b;
     }
 }

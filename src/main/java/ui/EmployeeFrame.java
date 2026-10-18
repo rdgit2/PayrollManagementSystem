@@ -25,9 +25,6 @@ import model.JobPosition;
 
 public class EmployeeFrame extends JPanel {
 
-    // ---------- palette (same as the other screens) ----------
-    // NOTE: the red color is called ERROR_RED because a plain "ERROR" name
-    // clashes with an int constant that Swing components inherit.
     private static final Color PRIMARY   = new Color(0x1D4ED8);
     private static final Color BG        = new Color(0xF8FAFC);
     private static final Color BORDER    = new Color(0xE2E8F0);
@@ -47,6 +44,12 @@ public class EmployeeFrame extends JPanel {
             new String[]{"Employee no", "Name", "Department", "Position",
                          "Monthly salary", "Contact", "Date hired", "Status"}, 0) {
         @Override public boolean isCellEditable(int row, int col) { return false; }
+
+        @Override public Class<?> getColumnClass(int col) {
+            if (col == 4) return Double.class;
+            if (col == 6) return LocalDate.class;
+            return String.class;
+        }
     };
     private final JTable table = new JTable(model);
     private final JTextField txtSearch = new JTextField();
@@ -61,7 +64,7 @@ public class EmployeeFrame extends JPanel {
         setBackground(BG);
         setBorder(new EmptyBorder(28, 32, 24, 32));
 
-        loadDepartmentFilter();   // fill the dropdown before any listener is attached
+        loadDepartmentFilter();
 
         add(buildHeader(), BorderLayout.NORTH);
         add(buildTable(), BorderLayout.CENTER);
@@ -77,8 +80,6 @@ public class EmployeeFrame extends JPanel {
         reload();
     }
 
-    // ---------- layout ----------
-
     private JPanel buildHeader() {
         JPanel top = new JPanel();
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
@@ -89,15 +90,9 @@ public class EmployeeFrame extends JPanel {
         h.setForeground(TEXT);
         h.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel sub = new JLabel("Manage employee records and their sign-in accounts");
-        sub.setForeground(MUTED);
-        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
-
         top.add(h);
         top.add(Box.createVerticalStrut(4));
-        top.add(sub);
 
-        // toolbar: search + department filter on the left, add on the right
         JPanel toolbar = new JPanel(new BorderLayout());
         toolbar.setOpaque(false);
         toolbar.setBorder(new EmptyBorder(20, 0, 14, 0));
@@ -135,6 +130,10 @@ public class EmployeeFrame extends JPanel {
         table.setAutoCreateRowSorter(true);
         table.getTableHeader().setReorderingAllowed(false);
         table.getTableHeader().setFont(table.getTableHeader().getFont().deriveFont(Font.BOLD, 12f));
+        TableCellRenderer headerRenderer = table.getTableHeader().getDefaultRenderer();
+        if (headerRenderer instanceof DefaultTableCellRenderer) {
+            ((DefaultTableCellRenderer) headerRenderer).setHorizontalAlignment(SwingConstants.CENTER);
+        }
         table.setForeground(TEXT);
 
         int[] widths = {100, 170, 130, 120, 110, 110, 105, 80};
@@ -142,14 +141,43 @@ public class EmployeeFrame extends JPanel {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
 
-        rightAlignColumn(4); // monthly salary
+        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
+        center.setHorizontalAlignment(SwingConstants.CENTER);
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            table.getColumnModel().getColumn(i).setCellRenderer(center);
+        }
 
-        // status column: green = ACTIVE, red = INACTIVE
+        DefaultTableCellRenderer moneyCell = new DefaultTableCellRenderer() {
+            @Override protected void setValue(Object value) {
+                if (value == null) {
+                    setText("");
+                } else {
+                    setText(String.format("%,.2f", ((Number) value).doubleValue()));
+                }
+            }
+        };
+        moneyCell.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(4).setCellRenderer(moneyCell);
+
+        DefaultTableCellRenderer dateCell = new DefaultTableCellRenderer() {
+            @Override protected void setValue(Object value) {
+                if (value == null) {
+                    setText("");
+                } else {
+                    setText(((LocalDate) value).format(DATE_FMT));
+                }
+            }
+        };
+        dateCell.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(6).setCellRenderer(dateCell);
+
         table.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean sel,
                                                            boolean focus, int r, int c) {
                 Component comp = super.getTableCellRendererComponent(t, v, sel, focus, r, c);
+                setHorizontalAlignment(SwingConstants.CENTER);
+                setFont(getFont().deriveFont(Font.BOLD, 12f));
                 if (!sel) comp.setForeground("INACTIVE".equals(v) ? ERROR_RED : OK);
                 return comp;
             }
@@ -171,21 +199,6 @@ public class EmployeeFrame extends JPanel {
         return scroll;
     }
 
-    private void rightAlignColumn(int col) {
-        DefaultTableCellRenderer cell = new DefaultTableCellRenderer();
-        cell.setHorizontalAlignment(SwingConstants.RIGHT);
-        table.getColumnModel().getColumn(col).setCellRenderer(cell);
-
-        TableCellRenderer base = table.getTableHeader().getDefaultRenderer();
-        table.getColumnModel().getColumn(col).setHeaderRenderer((t, v, sel, foc, row, c) -> {
-            Component comp = base.getTableCellRendererComponent(t, v, sel, foc, row, c);
-            if (comp instanceof JLabel) {
-                ((JLabel) comp).setHorizontalAlignment(SwingConstants.RIGHT);
-            }
-            return comp;
-        });
-    }
-
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
@@ -202,8 +215,6 @@ public class EmployeeFrame extends JPanel {
         footer.add(buttons, BorderLayout.EAST);
         return footer;
     }
-
-    // ---------- behavior ----------
 
     private void loadDepartmentFilter() {
         cboFilter.addItem(ALL);
@@ -231,14 +242,17 @@ public class EmployeeFrame extends JPanel {
 
             model.setRowCount(0);
             for (Employee e : employees) {
+
+                double salary = e.getMonthlySalary().doubleValue();
+
                 model.addRow(new Object[]{
                     e.getEmployeeNo(),
                     e.getFullName(),
                     e.getDepartmentName(),
                     e.getPositionTitle(),
-                    String.format("%,.2f", e.getMonthlySalary()),
+                    salary,
                     e.getContactNo() == null ? "" : e.getContactNo(),
-                    e.getDateHired().format(DATE_FMT),
+                    e.getDateHired(),
                     e.getStatus()
                 });
             }
@@ -252,6 +266,7 @@ public class EmployeeFrame extends JPanel {
     private Employee selected() {
         int row = table.getSelectedRow();
         if (row < 0) return null;
+
         return employees.get(table.convertRowIndexToModel(row));
     }
 
@@ -271,6 +286,7 @@ public class EmployeeFrame extends JPanel {
                 ? "Activate " + e.getFullName() + "? They will be able to sign in again."
                 : "Deactivate " + e.getFullName() + "? They will no longer be able to sign in.\n"
                   + "Their attendance and payslip history is kept.";
+
         int choice = JOptionPane.showConfirmDialog(this, message,
                 activate ? "Activate employee" : "Deactivate employee",
                 JOptionPane.YES_NO_OPTION);
@@ -303,8 +319,6 @@ public class EmployeeFrame extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    // ---------- button styles ----------
-
     private static JButton primaryButton(String text) {
         JButton b = new JButton(text);
         b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
@@ -331,10 +345,6 @@ public class EmployeeFrame extends JPanel {
         b.putClientProperty("JButton.buttonType", "roundRect");
         return b;
     }
-
-    // =====================================================================
-    // Add / Edit form
-    // =====================================================================
 
     private class EmployeeDialog extends JDialog {
 
@@ -373,7 +383,7 @@ public class EmployeeFrame extends JPanel {
             row = addRow(form, row, "First name", txtFirst);
             row = addRow(form, row, "Last name", txtLast);
             row = addRow(form, row, "Contact no", txtContact);
-            row = addRow(form, row, "Email", txtEmail);
+            row = addRow(form, row, "Email (sign-in username)", txtEmail);
             row = addRow(form, row, "Address", txtAddress);
             row = addRow(form, row, "Date hired", txtDate);
             row = addRow(form, row, "Department", cboDept);
@@ -382,10 +392,10 @@ public class EmployeeFrame extends JPanel {
                 addRow(form, row, "Status", cboStatus);
             }
             txtDate.putClientProperty("JTextField.placeholderText", "yyyy-mm-dd");
+            txtEmail.putClientProperty("JTextField.placeholderText", "name@company.com");
 
             fillForm();
 
-            // bottom: error message on the left, buttons on the right
             lblError.setForeground(ERROR_RED);
             lblError.setFont(lblError.getFont().deriveFont(Font.PLAIN, 12f));
 
@@ -399,11 +409,17 @@ public class EmployeeFrame extends JPanel {
             buttons.add(btnCancel);
             buttons.add(btnSave);
 
-            JPanel bottom = new JPanel(new BorderLayout());
+            // The error message has its own row above the buttons (room for two lines),
+            // so a long message can never overlap the buttons
+            JPanel bottom = new JPanel(new BorderLayout(0, 10));
             bottom.setBackground(Color.WHITE);
             bottom.setBorder(new EmptyBorder(8, 28, 20, 28));
-            bottom.add(lblError, BorderLayout.WEST);
-            bottom.add(buttons, BorderLayout.EAST);
+
+            lblError.setPreferredSize(new Dimension(380, 34));
+            lblError.setVerticalAlignment(SwingConstants.TOP);
+
+            bottom.add(lblError, BorderLayout.NORTH);
+            bottom.add(buttons, BorderLayout.SOUTH);
 
             add(form, BorderLayout.CENTER);
             add(bottom, BorderLayout.SOUTH);
@@ -461,17 +477,51 @@ public class EmployeeFrame extends JPanel {
             }
         }
 
+        // Shows an error message. The <html> tags let a long message wrap onto a second line.
+        private void setError(String message) {
+            lblError.setText("<html>" + message + "</html>");
+        }
+
         private void onSave() {
             String no = txtNo.getText().trim();
             String first = txtFirst.getText().trim();
             String last = txtLast.getText().trim();
+            String contact = txtContact.getText().trim();
+            String email = txtEmail.getText().trim().toLowerCase();
+            String address = txtAddress.getText().trim();
 
             if (no.isEmpty() || first.isEmpty() || last.isEmpty()) {
-                lblError.setText("Employee no, first name and last name are required.");
+                setError("Employee no, first name and last name are required.");
                 return;
             }
+
             if (no.length() > 20) {
-                lblError.setText("Employee no must be 20 characters or fewer.");
+                setError("Employee no must be 20 characters or fewer.");
+                return;
+            }
+            if (first.length() > 50 || last.length() > 50) {
+                setError("First and last name must be 50 characters or fewer.");
+                return;
+            }
+            if (contact.length() > 30) {
+                setError("Contact no must be 30 characters or fewer.");
+                return;
+            }
+            if (address.length() > 255) {
+                setError("Address must be 255 characters or fewer.");
+                return;
+            }
+
+            if (email.isEmpty()) {
+                setError("Email is required. It is the employee's sign-in username.");
+                return;
+            }
+            if (email.length() > 50) {
+                setError("Email must be 50 characters or fewer.");
+                return;
+            }
+            if (!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+                setError("Enter a valid email, for example name@company.com.");
                 return;
             }
 
@@ -479,14 +529,14 @@ public class EmployeeFrame extends JPanel {
             try {
                 hired = LocalDate.parse(txtDate.getText().trim());
             } catch (DateTimeParseException ex) {
-                lblError.setText("Date hired must look like 2026-10-12.");
+                setError("Date hired must look like 2026-10-12.");
                 return;
             }
 
             Department dept = (Department) cboDept.getSelectedItem();
             JobPosition pos = (JobPosition) cboPos.getSelectedItem();
             if (dept == null || pos == null) {
-                lblError.setText("Add a department and a job position in Setup first.");
+                setError("Add a department and a job position in Setup first.");
                 return;
             }
 
@@ -495,9 +545,9 @@ public class EmployeeFrame extends JPanel {
             e.setEmployeeNo(no);
             e.setFirstName(first);
             e.setLastName(last);
-            e.setContactNo(txtContact.getText());
-            e.setEmail(txtEmail.getText());
-            e.setAddress(txtAddress.getText());
+            e.setContactNo(contact);
+            e.setEmail(email);
+            e.setAddress(address);
             e.setDateHired(hired);
             e.setDepartmentId(dept.getDepartmentId());
             e.setPositionId(pos.getPositionId());
@@ -508,7 +558,7 @@ public class EmployeeFrame extends JPanel {
                     dao.insert(e);
                     JOptionPane.showMessageDialog(this,
                             "Employee added.\n\nSign-in account created:\n"
-                            + "Username: " + no + "\n"
+                            + "Username: " + email + "\n"
                             + "Password: " + EmployeeDAO.DEFAULT_PASSWORD,
                             "Employee added", JOptionPane.INFORMATION_MESSAGE);
                 } else {
@@ -518,10 +568,10 @@ public class EmployeeFrame extends JPanel {
                 dispose();
             } catch (SQLException ex) {
                 if ("23505".equals(ex.getSQLState())) {
-                    lblError.setText("That employee no or email already exists.");
+                    setError("That employee no or email already exists.");
                 } else {
                     ex.printStackTrace();
-                    lblError.setText("Could not save: " + ex.getMessage());
+                    setError("Could not save: " + ex.getMessage());
                 }
             }
         }

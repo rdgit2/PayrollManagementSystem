@@ -231,8 +231,6 @@ public class PayslipFrame extends JPanel {
         card.repaint();
     }
 
-    // ---------- print / export ----------
-
     private void onPrint() {
         PrinterJob job = PrinterJob.getPrinterJob();
         job.setPrintable((g, pf, page) -> {

@@ -44,7 +44,7 @@ public class DashboardFrame extends JFrame {
     private JButton selectedNav;
 
     public DashboardFrame(UserDAO.LoginResult user) {
-        super("Payroll Management System");
+        super("AZM Payroll System");
         this.username = user.username();
         this.role = user.role();
 
@@ -115,16 +115,9 @@ public class DashboardFrame extends JFrame {
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.setOpaque(false);
-        JLabel logo = new JLabel("P", SwingConstants.CENTER);
-        logo.setOpaque(true);
-        logo.setBackground(PRIMARY);
-        logo.setForeground(Color.WHITE);
-        logo.setFont(logo.getFont().deriveFont(Font.BOLD, 15f));
-        logo.setPreferredSize(new Dimension(30, 30));
-        JLabel title = new JLabel("Payroll Management System");
+        JLabel title = new JLabel("AZM Payroll System");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         title.setForeground(TEXT);
-        left.add(logo);
         left.add(title);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));

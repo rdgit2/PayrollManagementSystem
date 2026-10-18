@@ -7,7 +7,7 @@ public class PayslipDeductions {
     private int deductionTypeId;
     private BigDecimal amount = BigDecimal.ZERO;
 
-    private String deductionName;   // for display only
+    private String deductionName;   
 
     public PayslipDeductions() { }
 
