@@ -3,13 +3,14 @@ package ui;
 import dao.PayslipDAO;
 import dao.UserDAO;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.sql.SQLException;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-
 
 public class PayslipFrame extends JPanel {
 
@@ -20,8 +21,8 @@ public class PayslipFrame extends JPanel {
     private final JComboBox<PayslipDAO.PeriodItem> cbPeriod = new JComboBox<>();
     private final JComboBox<PayslipDAO.PayslipItem> cbEmployee = new JComboBox<>();
 
-    private Integer onlyEmployeeId = null; 
-    private boolean updating = false;        
+    private Integer onlyEmployeeId = null;
+    private boolean updating = false;
 
     public PayslipFrame() {
         this(null);
@@ -35,9 +36,14 @@ public class PayslipFrame extends JPanel {
         add(buildPanel(), BorderLayout.CENTER);
         showEmpty();
         loadPeriods();
-    }
 
- 
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                loadPeriods();
+            }
+        });
+    }
 
     private JPanel buildPanel() {
         JPanel p = new JPanel();
@@ -50,7 +56,6 @@ public class PayslipFrame extends JPanel {
         p.add(h);
         p.add(Box.createVerticalStrut(10));
 
-   
         JPanel selectors = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         selectors.add(new JLabel("Pay period"));
         selectors.add(cbPeriod);
@@ -58,9 +63,6 @@ public class PayslipFrame extends JPanel {
             selectors.add(new JLabel("Employee"));
             selectors.add(cbEmployee);
         }
-        JButton refresh = new JButton("Refresh");
-        refresh.addActionListener(e -> loadPeriods());
-        selectors.add(refresh);
         selectors.setAlignmentX(Component.LEFT_ALIGNMENT);
         selectors.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         p.add(selectors);
@@ -127,7 +129,6 @@ public class PayslipFrame extends JPanel {
     private String money(double v) {
         return String.format("%,.2f", v);
     }
-
 
     private void loadPeriods() {
         updating = true;
@@ -197,7 +198,6 @@ public class PayslipFrame extends JPanel {
         JOptionPane.showMessageDialog(this, message + ex.getMessage());
     }
 
-   
     public void load(String title, String subtitle, double basic, double overtime,
                      String[] deductionNames, double[] deductionAmounts) {
         card.removeAll();

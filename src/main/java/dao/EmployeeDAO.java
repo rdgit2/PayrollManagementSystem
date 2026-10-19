@@ -12,7 +12,7 @@ import model.Employee;
 
 public class EmployeeDAO {
 
-    public static final String DEFAULT_PASSWORD = "Employee123";
+    public static final String PASSWORD_SUFFIX = "123";
 
     private static final String SELECT =
         "SELECT e.employee_id, e.employee_no, e.first_name, e.last_name, e.contact_no, "
@@ -21,6 +21,14 @@ public class EmployeeDAO {
       + "FROM EMPLOYEES e "
       + "JOIN DEPARTMENTS d ON e.department_id = d.department_id "
       + "JOIN JOB_POSITIONS p ON e.position_id = p.position_id ";
+
+    public static String defaultPassword(String lastName) {
+        return lastName.replaceAll("\\s+", "") + PASSWORD_SUFFIX;
+    }
+
+    public static String formatEmployeeNo(int employeeId) {
+        return String.format("EMP-%03d", employeeId);
+    }
 
     public List<Employee> findAll() throws SQLException {
         return query(SELECT + "ORDER BY e.last_name, e.first_name");
@@ -38,11 +46,12 @@ public class EmployeeDAO {
         List<Employee> list = query(SELECT + "WHERE e.employee_id = ?", id);
         return list.isEmpty() ? null : list.get(0);
     }
- 
+
     public int insert(Employee e) throws SQLException {
         String sql = "INSERT INTO EMPLOYEES (employee_no, first_name, last_name, contact_no, "
                    + "email, address, date_hired, department_id, position_id, status) "
                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        e.setEmployeeNo("T" + Long.toString(System.nanoTime(), 36));
         try (Connection c = DBConnection.get()) {
             c.setAutoCommit(false);
             try {
@@ -55,6 +64,15 @@ public class EmployeeDAO {
                         newId = keys.getInt(1);
                     }
                 }
+                String employeeNo = formatEmployeeNo(newId);
+                try (PreparedStatement ps = c.prepareStatement(
+                        "UPDATE EMPLOYEES SET employee_no = ? WHERE employee_id = ?")) {
+                    ps.setString(1, employeeNo);
+                    ps.setInt(2, newId);
+                    ps.executeUpdate();
+                }
+                e.setEmployeeId(newId);
+                e.setEmployeeNo(employeeNo);
                 createAccount(c, e, newId);
                 c.commit();
                 return newId;
@@ -69,7 +87,7 @@ public class EmployeeDAO {
         String sql = "UPDATE EMPLOYEES SET employee_no = ?, first_name = ?, last_name = ?, "
                    + "contact_no = ?, email = ?, address = ?, date_hired = ?, "
                    + "department_id = ?, position_id = ?, status = ? WHERE employee_id = ?";
-        String userSql = "UPDATE USERS SET username = ?, full_name = ?, status = ? WHERE employee_id = ?";
+        String userSql = "UPDATE USERS SET full_name = ?, status = ? WHERE employee_id = ?";
         try (Connection c = DBConnection.get()) {
             c.setAutoCommit(false);
             try {
@@ -79,10 +97,9 @@ public class EmployeeDAO {
                     ps.executeUpdate();
                 }
                 try (PreparedStatement ps = c.prepareStatement(userSql)) {
-                    ps.setString(1, e.getEmployeeNo());
-                    ps.setString(2, e.getFullName());
-                    ps.setString(3, e.getStatus());
-                    ps.setInt(4, e.getEmployeeId());
+                    ps.setString(1, e.getFullName());
+                    ps.setString(2, e.getStatus());
+                    ps.setInt(3, e.getEmployeeId());
                     ps.executeUpdate();
                 }
                 c.commit();
@@ -117,13 +134,12 @@ public class EmployeeDAO {
         }
     }
 
-    //helpers
     private void createAccount(Connection c, Employee e, int employeeId) throws SQLException {
         String sql = "INSERT INTO USERS (username, password_hash, full_name, user_role, status, employee_id) "
                    + "VALUES (?, ?, ?, 'EMPLOYEE', ?, ?)";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, e.getEmployeeNo());
-            ps.setString(2, UserDAO.sha256(DEFAULT_PASSWORD));
+            ps.setString(2, UserDAO.sha256(defaultPassword(e.getLastName())));
             ps.setString(3, e.getFullName());
             ps.setString(4, e.getStatus() == null ? "ACTIVE" : e.getStatus());
             ps.setInt(5, employeeId);
@@ -136,7 +152,7 @@ public class EmployeeDAO {
         ps.setString(2, e.getFirstName());
         ps.setString(3, e.getLastName());
         ps.setString(4, nullIfBlank(e.getContactNo()));
-        ps.setString(5, nullIfBlank(e.getEmail()));   
+        ps.setString(5, nullIfBlank(e.getEmail()));
         ps.setString(6, nullIfBlank(e.getAddress()));
         ps.setDate(7, Date.valueOf(e.getDateHired()));
         ps.setInt(8, e.getDepartmentId());

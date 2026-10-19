@@ -5,9 +5,11 @@ import dao.PayrollDAO.PayrollRow;
 import dao.PayslipDAO;
 import java.awt.*;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -22,8 +24,10 @@ public class PayrollFrame extends JPanel {
     private static final Color TEXT      = new Color(0x0F172A);
     private static final Color TEXT_SOFT = new Color(0x334155);
 
-    private final JTextField fromField = new JTextField();
-    private final JTextField toField = new JTextField();
+    private final JLabel periodLabel = new JLabel();
+    private LocalDate periodStart;
+    private LocalDate periodEnd;
+
     private final JLabel totalLabel = new JLabel("Total net pay: 0.00");
     private final DefaultTableModel model = new DefaultTableModel(new Object[]{
             "Employee no", "Name", "Daily rate", "Present", "Late", "On leave",
@@ -43,9 +47,7 @@ public class PayrollFrame extends JPanel {
         setBackground(BG);
         setBorder(new EmptyBorder(28, 32, 24, 32));
 
-        LocalDate today = LocalDate.now();
-        fromField.setText(today.withDayOfMonth(1).toString());
-        toField.setText(today.toString());
+        setPeriod(LocalDate.now());
 
         add(buildHeader(), BorderLayout.NORTH);
         add(buildTable(), BorderLayout.CENTER);
@@ -75,28 +77,30 @@ public class PayrollFrame extends JPanel {
         toolbar.setBorder(new EmptyBorder(20, 0, 14, 0));
         toolbar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        fromField.setPreferredSize(new Dimension(130, 38));
-        fromField.putClientProperty("JTextField.placeholderText", "yyyy-mm-dd");
-        toField.setPreferredSize(new Dimension(130, 38));
-        toField.putClientProperty("JTextField.placeholderText", "yyyy-mm-dd");
+        periodLabel.setFont(periodLabel.getFont().deriveFont(Font.BOLD, 14f));
+        periodLabel.setForeground(TEXT);
+        periodLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        periodLabel.setPreferredSize(new Dimension(160, 38));
 
         JButton computeBtn = secondaryButton("Compute");
         computeBtn.addActionListener(e -> compute());
 
-        JButton payslipBtn = secondaryButton("View Payslip");
-        payslipBtn.addActionListener(e -> showPayslip());
-
         JButton saveBtn = primaryButton("Save Payslips");
         saveBtn.addActionListener(e -> savePayslips());
 
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         left.setOpaque(false);
-        left.add(fieldLabel("From"));
-        left.add(fromField);
-        left.add(fieldLabel("To"));
-        left.add(toField);
+        left.add(navButton("<<", "Previous month",
+                () -> changePeriod(periodStart.minusMonths(1))));
+        left.add(navButton("<", "Previous 15 days",
+                () -> changePeriod(periodStart.minusDays(1))));
+        left.add(periodLabel);
+        left.add(navButton(">", "Next 15 days",
+                () -> changePeriod(periodEnd.plusDays(1))));
+        left.add(navButton(">>", "Next month",
+                () -> changePeriod(periodStart.plusMonths(1))));
+        left.add(Box.createHorizontalStrut(10));
         left.add(computeBtn);
-        left.add(payslipBtn);
 
         toolbar.add(left, BorderLayout.WEST);
         toolbar.add(saveBtn, BorderLayout.EAST);
@@ -148,21 +152,46 @@ public class PayrollFrame extends JPanel {
         return footer;
     }
 
-    private JLabel fieldLabel(String text) {
-        JLabel l = new JLabel(text);
-        l.setFont(l.getFont().deriveFont(Font.BOLD, 12f));
-        l.setForeground(TEXT_SOFT);
-        return l;
+    private void setPeriod(LocalDate date) {
+        YearMonth ym = YearMonth.from(date);
+        if (date.getDayOfMonth() <= 15) {
+            periodStart = ym.atDay(1);
+            periodEnd = ym.atDay(15);
+        } else {
+            periodStart = ym.atDay(16);
+            periodEnd = ym.atEndOfMonth();
+        }
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH);
+        periodLabel.setText(f.format(periodStart) + " - " + periodEnd.getDayOfMonth()
+                + ", " + periodEnd.getYear());
+    }
+
+    private void changePeriod(LocalDate dateInNewPeriod) {
+        setPeriod(dateInNewPeriod);
+        clearResults();
+        compute();
+    }
+
+    private void clearResults() {
+        model.setRowCount(0);
+        currentRows = new ArrayList<>();
+        lastFrom = null;
+        lastTo = null;
+        totalLabel.setText("Total net pay: 0.00");
+    }
+
+    private JButton navButton(String text, String tip, Runnable action) {
+        JButton b = secondaryButton(text);
+        b.setToolTipText(tip);
+        b.setPreferredSize(new Dimension(52, 38));
+        b.addActionListener(e -> action.run());
+        return b;
     }
 
     private void compute() {
         try {
-            LocalDate from = LocalDate.parse(fromField.getText().trim());
-            LocalDate to = LocalDate.parse(toField.getText().trim());
-            if (to.isBefore(from)) {
-                JOptionPane.showMessageDialog(this, "'To' date must not be before 'From' date.");
-                return;
-            }
+            LocalDate from = periodStart;
+            LocalDate to = periodEnd;
             List<PayrollRow> rows = dao.compute(from, to);
             currentRows = rows;
             lastFrom = from;
@@ -178,40 +207,9 @@ public class PayrollFrame extends JPanel {
                 total += r.net();
             }
             totalLabel.setText("Total net pay: " + money(total));
-        } catch (DateTimeParseException ex) {
-            JOptionPane.showMessageDialog(this, "Use the date format yyyy-MM-dd, e.g. 2026-10-01.");
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
         }
-    }
-
-    private void showPayslip() {
-        int viewRow = table.getSelectedRow();
-        if (viewRow < 0) {
-            JOptionPane.showMessageDialog(this, "Select an employee row first.");
-            return;
-        }
-        if (lastFrom == null || lastTo == null || currentRows.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Click Compute first.");
-            return;
-        }
-
-        int modelRow = table.convertRowIndexToModel(viewRow);
-        PayrollRow r = currentRows.get(modelRow);
-
-        PayslipFrame panel = new PayslipFrame();
-        panel.load(r.name() + " · " + r.employeeNo(),
-                lastFrom + " – " + lastTo,
-                r.gross(), 0,
-                new String[]{"Late (" + r.late() + " x " + money(PayrollDAO.LATE_DEDUCTION) + ")"},
-                new double[]{r.deductions()});
-
-        Window owner = SwingUtilities.getWindowAncestor(this);
-        JDialog d = new JDialog(owner, "Payslip", Dialog.ModalityType.APPLICATION_MODAL);
-        d.setContentPane(panel);
-        d.setSize(520, 420);
-        d.setLocationRelativeTo(this);
-        d.setVisible(true);
     }
 
     private void savePayslips() {

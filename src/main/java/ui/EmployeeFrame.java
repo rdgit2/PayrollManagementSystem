@@ -379,11 +379,15 @@ public class EmployeeFrame extends JPanel {
             form.setBorder(new EmptyBorder(24, 28, 8, 28));
 
             int row = 0;
-            row = addRow(form, row, "Employee no", txtNo);
+            if (existing != null) {
+                txtNo.setEditable(false);
+                txtNo.setFocusable(false);
+                row = addRow(form, row, "Employee no", txtNo);
+            }
             row = addRow(form, row, "First name", txtFirst);
             row = addRow(form, row, "Last name", txtLast);
             row = addRow(form, row, "Contact no", txtContact);
-            row = addRow(form, row, "Email (sign-in username)", txtEmail);
+            row = addRow(form, row, "Email", txtEmail);
             row = addRow(form, row, "Address", txtAddress);
             row = addRow(form, row, "Date hired", txtDate);
             row = addRow(form, row, "Department", cboDept);
@@ -409,8 +413,6 @@ public class EmployeeFrame extends JPanel {
             buttons.add(btnCancel);
             buttons.add(btnSave);
 
-            // The error message has its own row above the buttons (room for two lines),
-            // so a long message can never overlap the buttons
             JPanel bottom = new JPanel(new BorderLayout(0, 10));
             bottom.setBackground(Color.WHITE);
             bottom.setBorder(new EmptyBorder(8, 28, 20, 28));
@@ -477,26 +479,19 @@ public class EmployeeFrame extends JPanel {
             }
         }
 
-        // Shows an error message. The <html> tags let a long message wrap onto a second line.
         private void setError(String message) {
             lblError.setText("<html>" + message + "</html>");
         }
 
         private void onSave() {
-            String no = txtNo.getText().trim();
             String first = txtFirst.getText().trim();
             String last = txtLast.getText().trim();
             String contact = txtContact.getText().trim();
             String email = txtEmail.getText().trim().toLowerCase();
             String address = txtAddress.getText().trim();
 
-            if (no.isEmpty() || first.isEmpty() || last.isEmpty()) {
-                setError("Employee no, first name and last name are required.");
-                return;
-            }
-
-            if (no.length() > 20) {
-                setError("Employee no must be 20 characters or fewer.");
+            if (first.isEmpty() || last.isEmpty()) {
+                setError("First name and last name are required.");
                 return;
             }
             if (first.length() > 50 || last.length() > 50) {
@@ -513,7 +508,7 @@ public class EmployeeFrame extends JPanel {
             }
 
             if (email.isEmpty()) {
-                setError("Email is required. It is the employee's sign-in username.");
+                setError("Email is required.");
                 return;
             }
             if (email.length() > 50) {
@@ -541,8 +536,10 @@ public class EmployeeFrame extends JPanel {
             }
 
             Employee e = new Employee();
-            if (existing != null) e.setEmployeeId(existing.getEmployeeId());
-            e.setEmployeeNo(no);
+            if (existing != null) {
+                e.setEmployeeId(existing.getEmployeeId());
+                e.setEmployeeNo(existing.getEmployeeNo());
+            }
             e.setFirstName(first);
             e.setLastName(last);
             e.setContactNo(contact);
@@ -558,8 +555,8 @@ public class EmployeeFrame extends JPanel {
                     dao.insert(e);
                     JOptionPane.showMessageDialog(this,
                             "Employee added.\n\nSign-in account created:\n"
-                            + "Username: " + email + "\n"
-                            + "Password: " + EmployeeDAO.DEFAULT_PASSWORD,
+                            + "Username: " + e.getEmployeeNo() + "\n"
+                            + "Password: " + EmployeeDAO.defaultPassword(last),
                             "Employee added", JOptionPane.INFORMATION_MESSAGE);
                 } else {
                     dao.update(e);
@@ -568,7 +565,7 @@ public class EmployeeFrame extends JPanel {
                 dispose();
             } catch (SQLException ex) {
                 if ("23505".equals(ex.getSQLState())) {
-                    setError("That employee no or email already exists.");
+                    setError("That email already exists.");
                 } else {
                     ex.printStackTrace();
                     setError("Could not save: " + ex.getMessage());
