@@ -3,7 +3,9 @@ package ui;
 import dao.PayrollDAO;
 import dao.PayrollDAO.PayrollRow;
 import dao.PayslipDAO;
+import dao.UserDAO;
 import java.awt.*;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -23,8 +25,15 @@ public class PayrollFrame extends JPanel {
     private static final Color BORDER    = new Color(0xE2E8F0);
     private static final Color TEXT      = new Color(0x0F172A);
     private static final Color TEXT_SOFT = new Color(0x334155);
+    private static final Color MUTED     = new Color(0x64748B);
+    private static final Color ERROR_RED = new Color(0xDC2626);
+    private static final Color OK        = new Color(0x15803D);
 
     private final JLabel periodLabel = new JLabel();
+    private final JLabel statusLabel = new JLabel(" ");
+    private final JButton saveBtn = primaryButton("Save Payslips");
+    private final JButton deleteBtn = secondaryButton("Delete Payslips");
+    private final JButton statusBtn = secondaryButton("Close Period");
     private LocalDate periodStart;
     private LocalDate periodEnd;
 
@@ -36,13 +45,21 @@ public class PayrollFrame extends JPanel {
     };
     private final JTable table = new JTable(model);
     private final PayrollDAO dao = new PayrollDAO();
+    private final PayslipDAO payslipDao = new PayslipDAO();
 
     private List<PayrollRow> currentRows = new ArrayList<>();
     private LocalDate lastFrom, lastTo;
 
     private int currentUserId = 1;
+    private boolean isAdmin = false;
 
     public PayrollFrame() {
+        this(null);
+    }
+
+    public PayrollFrame(UserDAO.LoginResult user) {
+        isAdmin = user != null && "ADMIN".equals(user.role());
+
         setLayout(new BorderLayout());
         setBackground(BG);
         setBorder(new EmptyBorder(28, 32, 24, 32));
@@ -52,11 +69,8 @@ public class PayrollFrame extends JPanel {
         add(buildHeader(), BorderLayout.NORTH);
         add(buildTable(), BorderLayout.CENTER);
         add(buildFooter(), BorderLayout.SOUTH);
-    }
 
-    public PayrollFrame(int userId) {
-        this();
-        this.currentUserId = userId;
+        refreshStatus();
     }
 
     private JPanel buildHeader() {
@@ -85,7 +99,6 @@ public class PayrollFrame extends JPanel {
         JButton computeBtn = secondaryButton("Compute");
         computeBtn.addActionListener(e -> compute());
 
-        JButton saveBtn = primaryButton("Save Payslips");
         saveBtn.addActionListener(e -> savePayslips());
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
@@ -105,6 +118,28 @@ public class PayrollFrame extends JPanel {
         toolbar.add(left, BorderLayout.WEST);
         toolbar.add(saveBtn, BorderLayout.EAST);
         top.add(toolbar);
+
+        JPanel statusBar = new JPanel(new BorderLayout());
+        statusBar.setOpaque(false);
+        statusBar.setBorder(new EmptyBorder(0, 0, 14, 0));
+        statusBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 13f));
+        statusBar.add(statusLabel, BorderLayout.WEST);
+
+        if (isAdmin) {
+            statusBtn.setPreferredSize(new Dimension(150, 38));
+            deleteBtn.setPreferredSize(new Dimension(150, 38));
+            statusBtn.addActionListener(e -> togglePeriodStatus());
+            deleteBtn.addActionListener(e -> deletePayslips());
+
+            JPanel adminButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+            adminButtons.setOpaque(false);
+            adminButtons.add(statusBtn);
+            adminButtons.add(deleteBtn);
+            statusBar.add(adminButtons, BorderLayout.EAST);
+        }
+        top.add(statusBar);
 
         return top;
     }
@@ -188,6 +223,68 @@ public class PayrollFrame extends JPanel {
         return b;
     }
 
+    private void refreshStatus() {
+        String status = null;
+        try {
+            PayslipDAO.PeriodItem period = payslipDao.findPeriod(periodStart, periodEnd);
+            if (period != null) status = period.status();
+        } catch (SQLException ex) {
+            statusLabel.setText("Cannot load the pay period status");
+            statusLabel.setForeground(ERROR_RED);
+            return;
+        }
+
+        if (status == null) {
+            statusLabel.setText("Status: no payslips saved yet");
+            statusLabel.setForeground(MUTED);
+        } else {
+            statusLabel.setText("Status: " + status);
+            statusLabel.setForeground("CLOSED".equals(status) ? ERROR_RED : OK);
+        }
+
+        boolean open = "OPEN".equals(status);
+        saveBtn.setEnabled(status == null || open);
+        deleteBtn.setEnabled(open);
+        statusBtn.setEnabled(status != null);
+        statusBtn.setText("CLOSED".equals(status) ? "Reopen Period" : "Close Period");
+    }
+
+    private void togglePeriodStatus() {
+        try {
+            PayslipDAO.PeriodItem period = payslipDao.findPeriod(periodStart, periodEnd);
+            if (period == null) {
+                JOptionPane.showMessageDialog(this, "Save payslips for this period first.");
+                return;
+            }
+            boolean closing = "OPEN".equals(period.status());
+            String message = closing
+                    ? "Close " + periodLabel.getText() + "?\nPayslips can no longer be saved or deleted."
+                    : "Reopen " + periodLabel.getText() + "?\nPayslips can be saved and deleted again.";
+            int ok = JOptionPane.showConfirmDialog(this, message,
+                    "Confirm", JOptionPane.YES_NO_OPTION);
+            if (ok != JOptionPane.YES_OPTION) return;
+            payslipDao.setPeriodStatus(periodStart, periodEnd, closing ? "CLOSED" : "OPEN");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Could not change the status: " + ex.getMessage());
+        }
+        refreshStatus();
+    }
+
+    private void deletePayslips() {
+        int ok = JOptionPane.showConfirmDialog(this,
+                "Delete all payslips for " + periodLabel.getText() + "?\nThis cannot be undone.",
+                "Confirm", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (ok != JOptionPane.YES_OPTION) return;
+
+        try {
+            int count = payslipDao.deletePeriodPayslips(periodStart, periodEnd);
+            JOptionPane.showMessageDialog(this, "Deleted payslips: " + count);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Delete failed: " + ex.getMessage());
+        }
+        refreshStatus();
+    }
+
     private void compute() {
         try {
             LocalDate from = periodStart;
@@ -210,6 +307,7 @@ public class PayrollFrame extends JPanel {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
         }
+        refreshStatus();
     }
 
     private void savePayslips() {
@@ -224,7 +322,7 @@ public class PayrollFrame extends JPanel {
 
         try {
             PayslipDAO.SaveResult res =
-                    new PayslipDAO().savePayslips(currentRows, lastFrom, lastTo, currentUserId);
+                    payslipDao.savePayslips(currentRows, lastFrom, lastTo, currentUserId);
             JOptionPane.showMessageDialog(this,
                     "Saved: " + res.saved
                     + "\nAlready saved earlier: " + res.alreadySaved
@@ -232,6 +330,7 @@ public class PayrollFrame extends JPanel {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Save failed: " + ex.getMessage());
         }
+        refreshStatus();
     }
 
     private static String money(double v) {

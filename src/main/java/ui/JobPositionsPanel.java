@@ -11,8 +11,16 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
 public class JobPositionsPanel extends JPanel {
+
+    private static final Color PRIMARY    = new Color(0x1D4ED8);
+    private static final Color PRIMARY_OFF = new Color(0x93C5FD);
+    private static final Color BORDER     = new Color(0xE2E8F0);
+    private static final Color TEXT       = new Color(0x0F172A);
+    private static final Color TEXT_SOFT  = new Color(0x334155);
+    private static final Color ERROR_RED  = new Color(0xDC2626);
 
     private static final String SQL_LIST   = "SELECT position_id, position_title, monthly_salary FROM JOB_POSITIONS ORDER BY position_title";
     private static final String SQL_INSERT = "INSERT INTO JOB_POSITIONS (position_title, monthly_salary) VALUES (?, ?)";
@@ -29,15 +37,15 @@ public class JobPositionsPanel extends JPanel {
     private final JTable table = new JTable(model);
     private final JTextField txtName = new JTextField();
     private final JTextField txtSalary = new JTextField();
-    private final JButton btnAdd = new JButton("Add");
-    private final JButton btnUpdate = new JButton("Update");
-    private final JButton btnDelete = new JButton("Delete");
-    private final JButton btnClear = new JButton("Clear");
+    private final JButton btnAdd = primaryButton("Add");
+    private final JButton btnUpdate = secondaryButton("Update");
+    private final JButton btnDelete = secondaryButton("Delete");
+    private final JButton btnClear = secondaryButton("Clear");
 
     private Integer selectedId = null;
 
     public JobPositionsPanel() {
-        setLayout(new BorderLayout(0, 12));
+        setLayout(new BorderLayout(0, 14));
         setOpaque(false);
 
         add(buildForm(), BorderLayout.NORTH);
@@ -57,57 +65,72 @@ public class JobPositionsPanel extends JPanel {
     }
 
     private JPanel buildForm() {
-        JPanel card = new JPanel(new GridBagLayout());
-        card.setBackground(new Color(248, 248, 248));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 220)),
-                new EmptyBorder(12, 14, 12, 14)));
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setOpaque(false);
+        form.setBorder(new EmptyBorder(6, 0, 4, 0));
 
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(4, 4, 4, 4);
-        gc.anchor = GridBagConstraints.WEST;
+        txtName.setPreferredSize(new Dimension(260, 38));
+        txtName.putClientProperty("JTextField.placeholderText", "Job position name");
+        txtSalary.setPreferredSize(new Dimension(170, 38));
+        txtSalary.putClientProperty("JTextField.placeholderText", "25000.00");
 
-        gc.gridx = 0; gc.gridy = 0;
-        card.add(new JLabel("Job position"), gc);
-        gc.gridx = 1; gc.weightx = 1; gc.fill = GridBagConstraints.HORIZONTAL;
-        txtName.setPreferredSize(new Dimension(260, 30));
-        card.add(txtName, gc);
+        JPanel fields = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        fields.setOpaque(false);
+        fields.setAlignmentX(Component.LEFT_ALIGNMENT);
+        fields.setBorder(new EmptyBorder(0, -10, 0, 0));
+        fields.add(fieldLabel("Job position"));
+        fields.add(txtName);
+        fields.add(fieldLabel("Monthly salary"));
+        fields.add(txtSalary);
 
-        gc.gridx = 2; gc.weightx = 0; gc.fill = GridBagConstraints.NONE;
-        card.add(new JLabel("Monthly salary"), gc);
-        gc.gridx = 3; gc.weightx = 1; gc.fill = GridBagConstraints.HORIZONTAL;
-        txtSalary.setPreferredSize(new Dimension(160, 30));
-        card.add(txtSalary, gc);
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         buttons.setOpaque(false);
+        buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
+        buttons.setBorder(new EmptyBorder(0, -10, 0, 0));
+        btnDelete.setForeground(ERROR_RED);
         buttons.add(btnAdd);
         buttons.add(btnUpdate);
         buttons.add(btnDelete);
         buttons.add(btnClear);
 
-        gc.gridx = 0; gc.gridy = 1; gc.gridwidth = 4; gc.weightx = 1;
-        gc.fill = GridBagConstraints.NONE;
-        card.add(buttons, gc);
-        return card;
+        form.add(fields);
+        form.add(Box.createVerticalStrut(12));
+        form.add(buttons);
+        return form;
     }
 
     private JScrollPane buildTable() {
-        table.setRowHeight(28);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.setRowHeight(38);
+        table.setShowVerticalLines(false);
+        table.setGridColor(BORDER);
         table.setFillsViewportHeight(true);
-        table.getColumnModel().getColumn(0).setMaxWidth(70);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setFont(table.getTableHeader().getFont().deriveFont(Font.BOLD, 12f));
+        TableCellRenderer headerRenderer = table.getTableHeader().getDefaultRenderer();
+        if (headerRenderer instanceof DefaultTableCellRenderer) {
+            ((DefaultTableCellRenderer) headerRenderer).setHorizontalAlignment(SwingConstants.CENTER);
+        }
+        table.setForeground(TEXT);
+        table.getColumnModel().getColumn(0).setMaxWidth(80);
+
+        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
+        center.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(0).setCellRenderer(center);
+        table.getColumnModel().getColumn(1).setCellRenderer(center);
 
         DefaultTableCellRenderer money = new DefaultTableCellRenderer() {
             @Override protected void setValue(Object v) {
                 setText(v instanceof BigDecimal ? String.format("%,.2f", (BigDecimal) v) : "");
-                setHorizontalAlignment(RIGHT);
             }
         };
+        money.setHorizontalAlignment(SwingConstants.CENTER);
         table.getColumnModel().getColumn(2).setCellRenderer(money);
 
         JScrollPane sp = new JScrollPane(table);
-        sp.setBorder(BorderFactory.createLineBorder(new Color(220, 220, 220)));
+        sp.setBorder(BorderFactory.createLineBorder(BORDER));
+        sp.getViewport().setBackground(Color.WHITE);
         return sp;
     }
 
@@ -146,6 +169,7 @@ public class JobPositionsPanel extends JPanel {
 
     private void setEditing(boolean editing) {
         btnAdd.setEnabled(!editing);
+        btnAdd.setBackground(editing ? PRIMARY_OFF : PRIMARY);
         btnUpdate.setEnabled(editing);
         btnDelete.setEnabled(editing);
     }
@@ -279,5 +303,39 @@ public class JobPositionsPanel extends JPanel {
         ex.printStackTrace();
         JOptionPane.showMessageDialog(this, "Database error: " + ex.getMessage(),
                 "Job positions", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private JLabel fieldLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(l.getFont().deriveFont(Font.BOLD, 12f));
+        l.setForeground(TEXT_SOFT);
+        return l;
+    }
+
+    private static JButton primaryButton(String text) {
+        JButton b = new JButton(text);
+        b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
+        b.setForeground(Color.WHITE);
+        b.setBackground(PRIMARY);
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(110, 38));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        return b;
+    }
+
+    private static JButton secondaryButton(String text) {
+        JButton b = new JButton(text);
+        b.setFont(b.getFont().deriveFont(Font.PLAIN, 13f));
+        b.setForeground(TEXT_SOFT);
+        b.setBackground(Color.WHITE);
+        b.setOpaque(true);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(110, 38));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        return b;
     }
 }

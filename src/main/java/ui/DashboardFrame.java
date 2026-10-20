@@ -64,7 +64,7 @@ public class DashboardFrame extends JFrame {
         }
         if (can(Access.Module.EMPLOYEES)) addScreen("employees", EmployeeFrame::new);
         if (can(Access.Module.ATTENDANCE)) addScreen("attendance", AttendanceFrame::new);
-        if (can(Access.Module.PAYROLL)) addScreen("payroll", PayrollFrame::new);
+        if (can(Access.Module.PAYROLL)) addScreen("payroll", () -> new PayrollFrame(user));
         if (can(Access.Module.PAYSLIP)) addScreen("payslip", () -> new PayslipFrame(user));
         if (can(Access.Module.SETUP)) addScreen("setup", Setup::new);
         if (can(Access.Module.PROFILE)) addScreen("profile", () -> new ProfilePanel(user, this::logout));

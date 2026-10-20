@@ -29,7 +29,7 @@ public class PayslipDAO {
             c.setAutoCommit(false);
             try {
                 int periodId = findOrCreatePeriod(c, from, to);
-                int lateTypeId = -1;  
+                int lateTypeId = -1;
 
                 for (PayrollRow r : rows) {
                     if (r.present() + r.late() + r.onLeave() == 0 || r.gross() <= 0) {
@@ -73,11 +73,9 @@ public class PayslipDAO {
         }
     }
 
-  
     public record PayslipDetail(String title, String subtitle, double basic, double overtime,
                                 String[] deductionNames, double[] deductionAmounts) {}
 
- 
     public List<PeriodItem> listPeriods() throws SQLException {
         String sql = "SELECT period_id, period_start, period_end, status "
                    + "FROM PAY_PERIODS ORDER BY period_start DESC";
@@ -93,6 +91,103 @@ public class PayslipDAO {
         return list;
     }
 
+    public PeriodItem findPeriod(LocalDate start, LocalDate end) throws SQLException {
+        String sql = "SELECT period_id, period_start, period_end, status FROM PAY_PERIODS "
+                   + "WHERE period_start = ? AND period_end = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(start));
+            ps.setDate(2, Date.valueOf(end));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new PeriodItem(rs.getInt(1), rs.getDate(2).toLocalDate(),
+                            rs.getDate(3).toLocalDate(), rs.getString(4));
+                }
+            }
+        }
+        return null;
+    }
+
+    public int deletePeriodPayslips(LocalDate start, LocalDate end) throws SQLException {
+        PeriodItem period = findPeriod(start, end);
+        if (period == null) {
+            throw new SQLException("There are no payslips for this pay period.");
+        }
+        if ("CLOSED".equals(period.status())) {
+            throw new SQLException("This pay period is CLOSED. Reopen it first.");
+        }
+        try (Connection c = DBConnection.get()) {
+            c.setAutoCommit(false);
+            try {
+                int deleted;
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM PAYSLIP_DEDUCTIONS WHERE PAYSLIP_ID IN "
+                      + "(SELECT PAYSLIP_ID FROM PAYSLIPS WHERE PERIOD_ID = ?)")) {
+                    ps.setInt(1, period.periodId());
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM PAYSLIPS WHERE PERIOD_ID = ?")) {
+                    ps.setInt(1, period.periodId());
+                    deleted = ps.executeUpdate();
+                }
+                c.commit();
+                return deleted;
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    public void deletePayslip(int payslipId) throws SQLException {
+        try (Connection c = DBConnection.get()) {
+            c.setAutoCommit(false);
+            try {
+                try (PreparedStatement ps = c.prepareStatement(
+                        "SELECT pp.STATUS FROM PAYSLIPS p "
+                      + "INNER JOIN PAY_PERIODS pp ON p.PERIOD_ID = pp.PERIOD_ID "
+                      + "WHERE p.PAYSLIP_ID = ?")) {
+                    ps.setInt(1, payslipId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            throw new SQLException("This payslip no longer exists.");
+                        }
+                        if ("CLOSED".equals(rs.getString(1))) {
+                            throw new SQLException("This pay period is CLOSED. Reopen it first.");
+                        }
+                    }
+                }
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM PAYSLIP_DEDUCTIONS WHERE PAYSLIP_ID = ?")) {
+                    ps.setInt(1, payslipId);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = c.prepareStatement(
+                        "DELETE FROM PAYSLIPS WHERE PAYSLIP_ID = ?")) {
+                    ps.setInt(1, payslipId);
+                    ps.executeUpdate();
+                }
+                c.commit();
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    public void setPeriodStatus(LocalDate start, LocalDate end, String status) throws SQLException {
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(
+                     "UPDATE PAY_PERIODS SET STATUS = ? WHERE PERIOD_START = ? AND PERIOD_END = ?")) {
+            ps.setString(1, status);
+            ps.setDate(2, Date.valueOf(start));
+            ps.setDate(3, Date.valueOf(end));
+            if (ps.executeUpdate() == 0) {
+                throw new SQLException("This pay period does not exist yet.");
+            }
+        }
+    }
 
     public List<PayslipItem> listPayslips(int periodId, Integer onlyEmployeeId) throws SQLException {
         String sql = "SELECT p.payslip_id, e.employee_id, e.employee_no, e.first_name, e.last_name "
@@ -170,7 +265,6 @@ public class PayslipDAO {
         }
     }
 
-  
     private int findOrCreatePeriod(Connection c, LocalDate from, LocalDate to) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT PERIOD_ID, STATUS FROM PAY_PERIODS WHERE PERIOD_START = ? AND PERIOD_END = ?")) {
@@ -190,7 +284,7 @@ public class PayslipDAO {
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setDate(1, Date.valueOf(from));
             ps.setDate(2, Date.valueOf(to));
-            ps.setDate(3, Date.valueOf(to));          
+            ps.setDate(3, Date.valueOf(to));
             ps.setString(4, PERIOD_STATUS);
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {

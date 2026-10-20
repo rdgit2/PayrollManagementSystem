@@ -8,7 +8,12 @@ import javax.swing.border.EmptyBorder;
 
 public class ProfilePanel extends JPanel {
 
-    private static final int CARD_WIDTH = 460;
+    private static final Color PRIMARY   = new Color(0x1D4ED8);
+    private static final Color BG        = new Color(0xF8FAFC);
+    private static final Color BORDER    = new Color(0xE2E8F0);
+    private static final Color TEXT      = new Color(0x0F172A);
+    private static final Color TEXT_SOFT = new Color(0x334155);
+    private static final Color MUTED     = new Color(0x64748B);
 
     private final UserDAO dao = new UserDAO();
     private final String username;
@@ -25,87 +30,114 @@ public class ProfilePanel extends JPanel {
         this.onLogout = onLogout;
 
         setLayout(new BorderLayout());
+        setBackground(BG);
+        setBorder(new EmptyBorder(28, 32, 24, 32));
 
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBorder(new EmptyBorder(16, 20, 16, 20));
+        JPanel top = new JPanel();
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+        top.setOpaque(false);
 
         JLabel h = new JLabel("My Account");
-        h.setFont(h.getFont().deriveFont(Font.BOLD, 20f));
+        h.setFont(h.getFont().deriveFont(Font.BOLD, 24f));
+        h.setForeground(TEXT);
         h.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(h);
-        p.add(Box.createVerticalStrut(4));
 
         JLabel who = new JLabel(user.fullName() + "  |  Username: " + user.username());
-        who.setForeground(Color.GRAY);
+        who.setForeground(MUTED);
         who.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(who);
-        p.add(Box.createVerticalStrut(14));
 
-        p.add(buildUsernameCard());
-        p.add(Box.createVerticalStrut(14));
-        p.add(buildPasswordCard());
-        p.add(Box.createVerticalGlue());
+        top.add(h);
+        top.add(Box.createVerticalStrut(4));
+        top.add(who);
+        top.add(Box.createVerticalStrut(22));
 
-        JScrollPane scroll = new JScrollPane(p);
+        JPanel cards = new JPanel(new GridLayout(1, 2, 20, 0));
+        cards.setOpaque(false);
+        cards.add(alignTop(buildUsernameCard()));
+        cards.add(alignTop(buildPasswordCard()));
+
+        JPanel body = new JPanel(new BorderLayout());
+        body.setOpaque(false);
+        body.add(cards, BorderLayout.NORTH);
+
+        JScrollPane scroll = new JScrollPane(body);
         scroll.setBorder(null);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        add(top, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
     }
 
+    private JPanel alignTop(JPanel card) {
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setOpaque(false);
+        wrap.add(card, BorderLayout.NORTH);
+        return wrap;
+    }
+
     private JPanel newCard(String title) {
-        JPanel card = new JPanel();
+        Card card = new Card();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 220)),
-                new EmptyBorder(14, 16, 14, 16)));
-        card.setBackground(new Color(248, 248, 248));
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setBorder(new EmptyBorder(20, 22, 22, 22));
 
         JLabel t = new JLabel(title);
-        t.setFont(t.getFont().deriveFont(Font.BOLD, 15f));
+        t.setFont(t.getFont().deriveFont(Font.BOLD, 16f));
+        t.setForeground(TEXT);
         t.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.add(t);
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(16));
         return card;
     }
 
-    private void addField(JPanel card, String label, JTextField field) {
+    private void addField(JPanel card, String label, JTextField field, String placeholder) {
         JLabel l = new JLabel(label);
+        l.setFont(l.getFont().deriveFont(Font.BOLD, 12f));
+        l.setForeground(TEXT_SOFT);
         l.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.add(l);
-        card.add(Box.createVerticalStrut(4));
+        card.add(Box.createVerticalStrut(6));
+
         field.setAlignmentX(Component.LEFT_ALIGNMENT);
-        field.setPreferredSize(new Dimension(300, 32));
-        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        field.setPreferredSize(new Dimension(300, 38));
+        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        field.putClientProperty("JTextField.placeholderText", placeholder);
         card.add(field);
-        card.add(Box.createVerticalStrut(10));
+        card.add(Box.createVerticalStrut(14));
     }
 
-    private void finishCard(JPanel card, JButton button) {
-        button.setAlignmentX(Component.LEFT_ALIGNMENT);
-        card.add(button);
-        card.setMaximumSize(new Dimension(CARD_WIDTH, card.getPreferredSize().height));
+    private void addButton(JPanel card, String text, Runnable action) {
+        JButton b = new JButton(text);
+        b.setFont(b.getFont().deriveFont(Font.BOLD, 13f));
+        b.setForeground(Color.WHITE);
+        b.setBackground(PRIMARY);
+        b.setOpaque(true);
+        b.setBorderPainted(false);
+        b.setFocusPainted(false);
+        b.setPreferredSize(new Dimension(160, 38));
+        b.setMaximumSize(new Dimension(160, 38));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        b.setAlignmentX(Component.LEFT_ALIGNMENT);
+        b.addActionListener(e -> action.run());
+        card.add(b);
     }
 
     private JPanel buildUsernameCard() {
         JPanel card = newCard("Change username");
-        addField(card, "New username", txtNewUsername);
-        addField(card, "Current password", txtUsernamePass);
-        JButton save = new JButton("Save username");
-        save.addActionListener(e -> onChangeUsername());
-        finishCard(card, save);
+        addField(card, "New username", txtNewUsername, "Enter your new username");
+        addField(card, "Current password", txtUsernamePass, "Enter your current password");
+        addButton(card, "Save username", this::onChangeUsername);
         return card;
     }
 
     private JPanel buildPasswordCard() {
         JPanel card = newCard("Change password");
-        addField(card, "Current password", txtCurrent);
-        addField(card, "New password", txtNew);
-        addField(card, "Confirm new password", txtConfirm);
-        JButton save = new JButton("Save password");
-        save.addActionListener(e -> onChangePassword());
-        finishCard(card, save);
+        addField(card, "Current password", txtCurrent, "Enter your current password");
+        addField(card, "New password", txtNew, "At least 6 characters");
+        addField(card, "Confirm new password", txtConfirm, "Type the new password again");
+        addButton(card, "Save password", this::onChangePassword);
         return card;
     }
 
@@ -195,5 +227,23 @@ public class ProfilePanel extends JPanel {
         ex.printStackTrace();
         JOptionPane.showMessageDialog(this, "Database error: " + ex.getMessage(),
                 "My Account", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static class Card extends JPanel {
+        Card() {
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(Color.WHITE);
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+            g2.setColor(BORDER);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+            g2.dispose();
+            super.paintComponent(g);
+        }
     }
 }
